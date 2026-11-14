@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { Party, State } from "./game";
 
 // Sound effects on the projector, from the recordings in public/audio (Web Audio).
+// boo.wav is the original boosted by 11.5 dB (it peaked at -12.5 dB, far below the others).
 const FILES = { knock: "/audio/knock.wav", crack: "/audio/break.wav", clap: "/audio/clap.wav", boo: "/audio/boo.wav", tada: "/audio/tada.wav" } as const;
 type Name = keyof typeof FILES;
 
@@ -54,7 +55,7 @@ function booTo(vol: number) {
     src.connect(boo).connect(ctx.destination);
     src.start();
   }
-  boo.gain.setTargetAtTime(vol, ctx.currentTime, 0.08);
+  boo.gain.setTargetAtTime(vol, ctx.currentTime, vol ? 0.02 : 0.15); // quick in, slow out
 }
 
 // Plays sounds for state changes on the projector.
@@ -79,9 +80,9 @@ export function useSounds(state: State | null) {
       const gained: Party = state.rope < p.rope ? "orange" : "blue";
       if (gained === state.speaker) play("clap", { gap: 90, rate: 0.9 + Math.random() * 0.25 });
       else {
-        booTo(0.8);
+        booTo(1);
         clearTimeout(booOff);
-        booOff = setTimeout(() => booTo(0), 450); // stops shortly after the last boo
+        booOff = setTimeout(() => booTo(0), 800); // dies down shortly after the last boo
       }
     }
     if (playing && state.timeLeft !== p.timeLeft && state.timeLeft <= 5) play("knock", { rate: 2, vol: 0.5 }); // last seconds
