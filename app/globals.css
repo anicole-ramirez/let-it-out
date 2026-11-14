@@ -2,35 +2,35 @@
 @font-face {
   font-family: "Silkscreen";
   font-weight: 400;
-  src: url("/fonts/Silkscreen-Regular.ttf");
+  src: url("./fonts/Silkscreen-Regular.ttf");
 }
 @font-face {
   font-family: "Silkscreen";
   font-weight: 700;
-  src: url("/fonts/Silkscreen-Bold.ttf");
+  src: url("./fonts/Silkscreen-Bold.ttf");
 }
 @font-face {
   font-family: "VT323";
-  src: url("/fonts/VT323-Regular.ttf");
+  src: url("./fonts/VT323-Regular.ttf");
 }
 @font-face {
   font-family: "UnifrakturMaguntia";
-  src: url("/fonts/UnifrakturMaguntia-Book.ttf");
+  src: url("./fonts/UnifrakturMaguntia-Book.ttf");
 }
 @font-face {
   font-family: "Old Standard TT";
   font-weight: 400;
-  src: url("/fonts/OldStandard-Regular.ttf");
+  src: url("./fonts/OldStandard-Regular.ttf");
 }
 @font-face {
   font-family: "Old Standard TT";
   font-weight: 700;
-  src: url("/fonts/OldStandard-Bold.ttf");
+  src: url("./fonts/OldStandard-Bold.ttf");
 }
 @font-face {
   font-family: "Old Standard TT";
   font-style: italic;
-  src: url("/fonts/OldStandard-Italic.ttf");
+  src: url("./fonts/OldStandard-Italic.ttf");
 }
 
 :root {
@@ -220,5 +220,25 @@ button:disabled {
   100% {
     transform: none;
     filter: none;
+  }
+}
+
+/* The TV is landscape: a phone held upright is asked to turn. */
+.turn {
+  display: none;
+}
+@media (orientation: portrait) and (max-width: 600px) {
+  .turn {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    font-size: 1.6rem;
+    background: var(--void);
+    color: var(--gold);
   }
 }

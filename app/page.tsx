@@ -1,17 +1,13 @@
 "use client";
 import { useEffect, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
-import { COLORS, send, useGameState } from "@/lib/client";
+import { COLORS, STATIC, getId, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party } from "@/lib/game";
+import Screen from "./screen/page";
 
 // Phone view: pick a party, then clap or boo while watching the projector.
-// Per-tab id that survives reloads (crypto.randomUUID needs HTTPS, the LAN server has none).
-function getId() {
-  let id = sessionStorage.getItem("id");
-  if (!id) {
-    id = Math.random().toString(36).slice(2);
-    sessionStorage.setItem("id", id);
-  }
-  return id;
+// The static build has no server for phones: there this page is the screen.
+export default function Home() {
+  return STATIC ? <Screen /> : <Phone />;
 }
 
 // Ripple from the touch point (plain DOM: it removes itself when the animation ends).
@@ -48,8 +44,8 @@ function Frame({ party, row, alarm, children }: { party?: Party; row?: boolean; 
   );
 }
 
-export default function Phone() {
-  const state = useGameState(getId);
+function Phone() {
+  const state = useGameState();
   const [wrong, setWrong] = useState(false);
   const [name, setName] = useState(() => (typeof window === "undefined" ? "" : localStorage.getItem("name") ?? ""));
   // The vote button appears under the thumbs of people still tapping, so it
@@ -151,8 +147,8 @@ export default function Phone() {
   // A wrong reaction turns the frame and both buttons red and buzzes, so you notice without looking down.
   const react = async (type: "clap" | "boo", e: PointerEvent<HTMLButtonElement>) => {
     ripple(e);
-    const r = await (await send({ type, id })).json();
-    if (r.right === false) {
+    const r = await send({ type, id });
+    if (r?.right === false) {
       navigator.vibrate?.(80);
       setWrong(true);
       setTimeout(() => setWrong(false), 200);

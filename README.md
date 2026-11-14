@@ -2,39 +2,13 @@
 
 Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 
-- `/` phone: join a party, then CLAP or BOO; vote "Play again" after a round.
-- `/screen` projector: mode choice, QR code to join, countdown, debate stage, percentage bar.
-- Phone → `POST /api/action` → in-memory state (`lib/game.ts`) → SSE `GET /api/events` → screen and phones.
-
-## Look
-
-Retro pixel-art TV debate, after the design handoff in `pitch/letitout-design-handoff/` (inspiration, not followed 1:1).
-
-- Tokens, fonts and shared styles: `app/globals.css`; fonts in `public/fonts/`.
-- Start-up on the projector: click to start (unlocks sound), then `public/intro.html` (copy of `pitch/Archivo/intro.html`, patched to report its knocks and the break) until any key or tap, then a zoom into the TV.
-- Sound: recordings in `public/audio/` (from `pitch/attachments/`), played by `lib/sound.ts` with rate limits.
-- Throwables: taps throw items at the speaker (flowers and teddies when cheering, tomatoes and shoes when booing). Drawings in `lib/throwables.json`, extracted from `pitch/second design.html`.
-- Characters: `lib/PixelSprite.tsx` draws the pixel maps in `lib/sprites.json`, recoloured per party.
-
-## Rules
-
-- The spotlight moves between both candidates and the moderator: long speeches (2.5-4 s), quick back-and-forth exchanges (0.8-1.2 s a turn) and short moderator interruptions, 30% faster in the last 10 seconds.
-- Clap your own politician or boo the other one to grow your share of the bar. Any other tap, incl. during the moderator, grows the other side.
-- Filling the whole bar wins instantly; otherwise the bigger share after 30 s wins.
-- Uneven teams: the bar takes more taps to fill and taps from the smaller team count for more.
-- Players enter a name; the end screen lists correct and wrong taps per player.
-- Anti-cheat: only the first finger on the phone counts, and the server ignores taps less than 80 ms apart.
-- Single player: the computer plays the party nobody joined.
-- The next round starts when every connected phone voted "Play again" (or "Start now" on the screen).
+Single player: https://abdbarho.github.io/let-it-out/
 
 ## Run
 
 ```
 npm install
 npm run dev
-npm test   # game logic unit tests, under a second
 ```
 
 Open `http://localhost:3000/screen` on the projector; phones on the same Wi-Fi scan the QR code.
-
-State lives in one Node process: run a single instance, restart clears it.

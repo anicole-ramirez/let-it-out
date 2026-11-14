@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { COLORS, GOLD, SHADE, send, useGameState } from "@/lib/client";
+import { BASE, COLORS, GOLD, SHADE, STATIC, getId, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party, type Speaker, type State } from "@/lib/game";
 import { HAIR, PixelSprite, SLOTS, type SpriteName } from "@/lib/PixelSprite";
 import { play, unlock, useSounds } from "@/lib/sound";
@@ -8,6 +8,7 @@ import THROWABLES from "@/lib/throwables.json";
 
 // Projector view: everything happens inside an old TV. HUD (timer + one bar) on top, then
 // the lobby form, the countdown, the debate studio or the results newspaper.
+// Single player plays on this screen alone, without a phone.
 
 const INK = "var(--ink)";
 const silk: CSSProperties = { fontFamily: "Silkscreen, monospace", fontWeight: 700, textTransform: "uppercase" };
@@ -129,10 +130,6 @@ function HowTo({ size }: { size: string }) {
 }
 
 function Lobby({ state, count }: { state: State; count: number }) {
-  const [join, setJoin] = useState<{ url: string; qr: string } | null>(null);
-  useEffect(() => {
-    fetch("/api/join").then((r) => r.json()).then(setJoin);
-  }, []);
   if (!state.mode)
     return (
       <div style={center}>
@@ -143,14 +140,59 @@ function Lobby({ state, count }: { state: State; count: number }) {
               Single player
               <div style={{ fontFamily: "VT323", fontWeight: 400, textTransform: "none" }}>you against the computer</div>
             </button>
-            <button style={{ ...btn, padding: "3vh 3vw" }} onClick={() => send({ type: "mode", mode: "multi" })}>
+            <button style={{ ...btn, padding: "3vh 3vw" }} disabled={STATIC} onClick={() => send({ type: "mode", mode: "multi" })}>
               Multiplayer
-              <div style={{ fontFamily: "VT323", fontWeight: 400, textTransform: "none" }}>orange against blue</div>
+              <div style={{ fontFamily: "VT323", fontWeight: 400, textTransform: "none" }}>{STATIC ? "only on the local server" : "orange against blue"}</div>
             </button>
           </div>
         </div>
       </div>
     );
+  return state.mode === "single" ? <Solo /> : <Join state={state} count={count} />;
+}
+
+// Single player: name and party on this screen; picking the party starts the round.
+function Solo() {
+  const [name, setName] = useState(() => localStorage.getItem("name") ?? "");
+  const pick = async (party: Party) => {
+    localStorage.setItem("name", name.trim());
+    await send({ type: "join", id: getId(), party, name });
+    send({ type: "start" });
+  };
+  return (
+    <div style={center}>
+      <div className="panel" style={{ ...center, flex: "none", fontSize: "3.6vh" }}>
+        <HowTo size="4.4vh" />
+        <input
+          autoFocus
+          placeholder="Your name"
+          maxLength={12}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ font: "inherit", padding: "1vh 1vw", border: `5px solid ${INK}`, borderRadius: 0, background: "var(--paper)", color: INK, textAlign: "center" }}
+        />
+        {name.trim() ? "Pick your party" : "Type your name first"}
+        <div style={{ display: "flex", gap: "2vw" }}>
+          {PARTIES.map((p) => (
+            <button key={p} style={{ ...btn, padding: "2vh 3vw", background: COLORS[p] }} disabled={!name.trim()} onClick={() => pick(p)}>
+              {p}
+            </button>
+          ))}
+          <button style={btn} onClick={() => send({ type: "reset" })}>
+            Back
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Multiplayer: phones scan the QR code to join.
+function Join({ state, count }: { state: State; count: number }) {
+  const [join, setJoin] = useState<{ url: string; qr: string } | null>(null);
+  useEffect(() => {
+    fetch("/api/join").then((r) => r.json()).then(setJoin);
+  }, []);
   return (
     <div style={center}>
       <div className="panel" style={{ width: "92%", height: "100%", boxSizing: "border-box", padding: "2vh 2vw", display: "flex", gap: "2.5vw", fontSize: "3.6vh", lineHeight: 1.1 }}>
@@ -161,7 +203,6 @@ function Lobby({ state, count }: { state: State; count: number }) {
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "1.2vh" }}>
           <div>
             Scan to join, or open <b>{join?.url}</b>
-            {state.mode === "single" && ". The computer plays the other party."}
           </div>
           <HowTo size="4.4vh" />
           <Roster state={state} />
@@ -182,7 +223,7 @@ function Lobby({ state, count }: { state: State; count: number }) {
 function Countdown({ state }: { state: State }) {
   return (
     <div style={{ ...center, background: "var(--void)", fontSize: "4vh" }}>
-      <div>Get ready! Watch this screen, not your phone.</div>
+      <div>Get ready!{state.mode === "multi" && " Watch this screen, not your phone."}</div>
       <b key={state.countdown} className="punch" style={{ ...silk, fontSize: "28vh", lineHeight: 1 }}>
         {state.countdown}
       </b>
@@ -320,6 +361,45 @@ function Stage({ state }: { state: State }) {
   );
 }
 
+// Single player's buttons under the studio, also on the ← and → keys: the left one is orange,
+// the right one blue, as on the stage. Press the colour of whoever speaks.
+function Controls({ state }: { state: State }) {
+  const id = getId();
+  const me = state.players[id]?.party;
+  const refs = useRef<Partial<Record<Party, HTMLButtonElement | null>>>({});
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const p: Party | null = e.key === "ArrowLeft" ? "orange" : e.key === "ArrowRight" ? "blue" : null;
+      if (!p || !me) return;
+      e.preventDefault();
+      if (e.repeat) return;
+      refs.current[p]?.animate([{ transform: "translate(3px, 3px)", boxShadow: "2px 2px 0 #000" }, {}], 120);
+      send({ type: p === me ? "clap" : "boo", id });
+    };
+    window.addEventListener("keydown", down);
+    return () => window.removeEventListener("keydown", down);
+  }, [me, id]);
+  if (!me) return null;
+  return (
+    <div style={{ display: "flex", gap: "1.5vw", padding: "1.2vh 1.5vw 1.8vh", background: INK }}>
+      {PARTIES.map((p) => (
+        <button
+          key={p}
+          ref={(el) => {
+            refs.current[p] = el;
+          }}
+          style={{ ...btn, flex: 1, fontSize: "4vh", background: COLORS[p] }}
+          onPointerDown={(e) => e.isPrimary && send({ type: p === me ? "clap" : "boo", id })}
+        >
+          {p === "orange" && "← "}
+          {p === me ? "Clap" : "Boo"}
+          {p === "blue" && " →"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // Winner-coloured confetti over the whole screen at the end of a round.
 function Confetti({ color }: { color: string }) {
   return (
@@ -338,6 +418,7 @@ function Newspaper({ state }: { state: State }) {
   const lead = w ? pct[w] - 50 : 0;
   const headline = !w ? "Debate ends in deadlock" : `${w} ${lead > 25 ? "wins in landslide" : lead > 10 ? "takes the debate" : "wins photo finish"}`;
   const voters = Object.values(state.players).filter((p) => p.online);
+  const multi = state.mode === "multi";
   return (
     <div style={{ ...center, background: "var(--void)", padding: "2.5vh" }}>
       <div style={{ transform: "rotate(-1.2deg)", width: "88%", height: "96%", boxSizing: "border-box", padding: "2vh 3vw", background: "#EAE4CE", color: INK, boxShadow: "10px 10px 0 #000", fontFamily: "'Old Standard TT', serif", display: "flex", flexDirection: "column", gap: "1.5vh" }}>
@@ -356,10 +437,14 @@ function Newspaper({ state }: { state: State }) {
             <Roster state={state} scores />
             <div style={{ display: "flex", alignItems: "center", gap: "1vw", fontSize: "3vh" }}>
               <span style={{ flex: 1 }}>
-                Tap <b>Play again</b> on your phone ({voters.filter((p) => p.ready).length}/{voters.length} ready)
+                {multi && (
+                  <>
+                    Tap <b>Play again</b> on your phone ({voters.filter((p) => p.ready).length}/{voters.length} ready)
+                  </>
+                )}
               </span>
-              <button style={{ ...btn, fontSize: "2.4vh" }} onClick={() => send({ type: "start" })}>
-                Rematch now
+              <button style={{ ...btn, fontSize: "2.4vh", background: multi ? undefined : GOLD }} onClick={() => send({ type: "start" })}>
+                {multi ? "Rematch now" : "Play again"}
               </button>
               <button style={{ ...btn, fontSize: "2.4vh" }} onClick={() => send({ type: "reset" })}>
                 Menu
@@ -414,7 +499,7 @@ function Intro({ onLeave, onDone }: { onLeave: () => void; onDone: () => void })
     };
   }, [onLeave, onDone]);
   // The zoom aims at the TV screen inside the intro picture.
-  return <iframe ref={ref} src="/intro.html" title="Intro" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", border: 0, zIndex: 10, transformOrigin: "46.6% 50.6%" }} />;
+  return <iframe ref={ref} src={`${BASE}/intro.html`} title="Intro" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", border: 0, zIndex: 10, transformOrigin: "46.6% 50.6%" }} />;
 }
 
 export default function Screen() {
@@ -454,6 +539,7 @@ export default function Screen() {
           {state.phase === "playing" && <Stage state={state} />}
           {state.phase === "ended" && <Newspaper state={state} />}
         </div>
+        {state.mode === "single" && (state.phase === "countdown" || state.phase === "playing") && <Controls state={state} />}
         <div className="crt" />
       </div>
       {state.phase === "ended" && state.winner && <Confetti color={COLORS[state.winner]} />}
@@ -471,6 +557,7 @@ export default function Screen() {
         </div>
       )}
       {fresh && (boot === "intro" || boot === "leaving") && <Intro onLeave={leaveIntro} onDone={endIntro} />}
+      <div className="turn silk">Turn your phone sideways</div>
     </main>
   );
 }

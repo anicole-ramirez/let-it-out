@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { BASE } from "./client";
 import type { Party, State } from "./game";
 
 // Sound effects on the projector, from the recordings in public/audio (Web Audio).
 // boo.wav is the original boosted by 11.5 dB (it peaked at -12.5 dB, far below the others).
-const FILES = { knock: "/audio/knock.wav", crack: "/audio/break.wav", clap: "/audio/clap.wav", boo: "/audio/boo.wav", tada: "/audio/tada.wav" } as const;
+const FILES = { knock: "knock.wav", crack: "break.wav", clap: "clap.wav", boo: "boo.wav", tada: "tada.wav" } as const;
 type Name = keyof typeof FILES;
 
 let ctx: AudioContext | null = null;
@@ -17,8 +18,8 @@ let booOff: ReturnType<typeof setTimeout>;
 export function unlock() {
   if (!ctx) {
     const c = (ctx = new AudioContext());
-    for (const [name, url] of Object.entries(FILES) as [Name, string][])
-      fetch(url)
+    for (const [name, file] of Object.entries(FILES) as [Name, string][])
+      fetch(`${BASE}/audio/${file}`)
         .then((r) => r.arrayBuffer())
         .then((b) => c.decodeAudioData(b))
         .then((buf) => (buffers[name] = buf))
