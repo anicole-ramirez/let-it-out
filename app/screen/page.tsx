@@ -220,16 +220,19 @@ function Crowd({ state }: { state: State }) {
 }
 
 // Wide shot of the studio: both candidates and the moderator are always visible; the speaker
-// is lit by the spotlight and talks, the others are dimmed. No text: phones match the colours.
+// is lit by the spotlight and talks, the others are dimmed. No text: the whole set takes the
+// colour of the phone button to tap.
 function Stage({ state }: { state: State }) {
   const live = state.speaker ?? "moderator";
   const talk = useFlip(180);
   const wrongs = Object.values(state.players).reduce((n, x) => n + x.wrong, 0);
   const x = SPOT[live];
+  // The curtains take the colour of the button to tap; grey for the moderator (no button is grey).
+  const [c1, c2] = live === "moderator" ? ["#5E5A52", "#4E4A42"] : [COLORS[live], SHADE[live]];
   return (
     // Any wrong tap: the studio shakes and a red frame flashes.
     <Pop on={wrongs} frames={QUAKE} ms={300} style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", flexDirection: "column" }}>
-      <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden", background: "repeating-linear-gradient(90deg, #4a211d 0 5vw, #3d1a17 5vw 10vw)" }}>
+      <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden", background: `repeating-linear-gradient(90deg, ${c1} 0 5vw, ${c2} 5vw 10vw)` }}>
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "9%", background: "var(--floor)", borderTop: `5px solid ${INK}` }} />
         <div style={{ position: "absolute", inset: 0, background: "rgba(232, 224, 200, 0.2)", clipPath: `polygon(${x - 4}% 0, ${x + 4}% 0, ${x + 16}% 100%, ${x - 16}% 100%)`, transition: "clip-path 0.3s" }} />
         <div style={{ position: "absolute", left: 0, right: 0, top: "8%", bottom: "4%" }}>
@@ -268,60 +271,32 @@ function Confetti({ color }: { color: string }) {
   );
 }
 
-// Results as a newspaper front page: headline, "photo", per-player tally, final share, rematch vote.
+// Results as a newspaper front page, kept bare: masthead, headline, photo, per-player tally, rematch.
 function Newspaper({ state }: { state: State }) {
   const pct = share(state);
   const w = state.winner;
   const lead = w ? pct[w] - 50 : 0;
   const headline = !w ? "Debate ends in deadlock" : `${w} ${lead > 25 ? "wins in landslide" : lead > 10 ? "takes the debate" : "wins photo finish"}`;
-  const sub = !w ? "Both camps claim victory; moderator demands silence" : `${other(w)[0].toUpperCase()}${other(w).slice(1)} camp demands recount; moderator demands silence`;
   const voters = Object.values(state.players).filter((p) => p.online);
-  const small: CSSProperties = { display: "flex", justifyContent: "space-between", fontSize: "2vh", textTransform: "uppercase" };
-  const rule = `3px double ${INK}`;
   return (
     <div style={{ ...center, background: "var(--void)", padding: "2.5vh" }}>
-      <div style={{ position: "relative", transform: "rotate(-1.2deg)", width: "88%", height: "96%", boxSizing: "border-box", padding: "1.5vh 2.5vw", background: "var(--grain), #EAE4CE", color: INK, boxShadow: "10px 10px 0 #000", fontFamily: "'Old Standard TT', serif", display: "flex", flexDirection: "column", gap: "0.8vh" }}>
-        <div style={{ ...small, borderBottom: rule }}>
-          <span>Vol. I · No. 30</span>
-          <span>Late city edition</span>
-          <span>Price: one boo</span>
-        </div>
-        <div style={{ fontFamily: "UnifrakturMaguntia, serif", fontSize: "8vh", lineHeight: 1, textAlign: "center" }}>The Daily Debate</div>
-        <div style={{ ...small, borderTop: rule, borderBottom: rule }}>
-          <span>Berlin, Saturday</span>
-          <span>“All the noise that’s fit to print”</span>
-          <span>Election night</span>
-        </div>
-        <b style={{ fontSize: "7.5vh", lineHeight: 1, textAlign: "center", textTransform: "uppercase" }}>{headline}</b>
-        <i style={{ fontSize: "3vh", textAlign: "center", borderBottom: `2px solid ${INK}`, paddingBottom: "0.5vh" }}>{sub}</i>
-        <div style={{ flex: 1, minHeight: 0, display: "flex", gap: "2vw" }}>
-          <div style={{ width: "30%", display: "flex", flexDirection: "column", gap: "0.5vh" }}>
-            <div style={{ flex: 1, minHeight: 0, position: "relative", border: `4px solid ${INK}`, background: "#CFC8AE", filter: "grayscale(1) contrast(1.1)", display: "flex", justifyContent: "space-around", alignItems: "flex-end", padding: "1vh 1vw 0" }}>
-              <div style={{ height: "92%" }}>
-                <PixelSprite name={w === "orange" ? "cand_a_talk" : "cand_a_idle"} slots={SLOTS.orange} />
-              </div>
-              <div style={{ height: "92%" }}>
-                <PixelSprite name={w === "blue" ? "cand_b_talk" : "cand_b_idle"} slots={SLOTS.blue} flip />
-              </div>
-              <div style={{ position: "absolute", inset: 0, background: "var(--grain)" }} />
+      <div style={{ transform: "rotate(-1.2deg)", width: "88%", height: "96%", boxSizing: "border-box", padding: "2vh 3vw", background: "#EAE4CE", color: INK, boxShadow: "10px 10px 0 #000", fontFamily: "'Old Standard TT', serif", display: "flex", flexDirection: "column", gap: "1.5vh" }}>
+        <div style={{ fontFamily: "UnifrakturMaguntia, serif", fontSize: "6vh", lineHeight: 1, textAlign: "center", borderBottom: `3px double ${INK}`, paddingBottom: "1vh" }}>The Daily Debate</div>
+        <b style={{ fontSize: "9vh", lineHeight: 1, textAlign: "center", textTransform: "uppercase", color: w ? SHADE[w] : INK }}>{headline}</b>
+        <div style={{ flex: 1, minHeight: 0, display: "flex", gap: "3vw" }}>
+          <div style={{ width: "32%", boxSizing: "border-box", border: `4px solid ${INK}`, background: "#CFC8AE", filter: "grayscale(1) contrast(1.1)", display: "flex", justifyContent: "space-around", alignItems: "flex-end", padding: "1vh 1vw 0", overflow: "hidden" }}>
+            <div style={{ width: "46%" }}>
+              <PixelSprite name={w === "orange" ? "cand_a_talk" : "cand_a_idle"} slots={SLOTS.orange} style={{ width: "100%", height: "auto" }} />
             </div>
-            <i style={{ fontSize: "1.9vh" }}>The candidates exchange words. Photo: Studio CH 01.</i>
+            <div style={{ width: "46%" }}>
+              <PixelSprite name={w === "blue" ? "cand_b_talk" : "cand_b_idle"} slots={SLOTS.blue} flip style={{ width: "100%", height: "auto" }} />
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "1vh", fontSize: "3vh", lineHeight: 1.15 }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "1.5vh", fontSize: "4vh", lineHeight: 1.2 }}>
             <Roster state={state} scores />
-            <div style={{ border: `3px solid ${INK}`, padding: "0.8vh 1vw" }}>
-              <div style={{ ...silk, fontSize: "1.8vh" }}>Final crowd share</div>
-              <div style={{ height: "3.5vh", background: COLORS.blue, border: `3px solid ${INK}` }}>
-                <div style={{ height: "100%", width: `${pct.orange}%`, background: COLORS.orange, borderRight: `3px solid ${INK}`, boxSizing: "border-box" }} />
-              </div>
-              <div style={{ ...silk, fontSize: "2vh", display: "flex", justifyContent: "space-between" }}>
-                <span>Orange {pct.orange}%</span>
-                <span>Blue {pct.blue}%</span>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "1vw" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1vw", fontSize: "3vh" }}>
               <span style={{ flex: 1 }}>
-                Rematch? Tap <b>Play again</b> on your phone ({voters.filter((p) => p.ready).length}/{voters.length} ready)
+                Tap <b>Play again</b> on your phone ({voters.filter((p) => p.ready).length}/{voters.length} ready)
               </span>
               <button style={{ ...btn, fontSize: "2.4vh" }} onClick={() => send({ type: "start" })}>
                 Rematch now
@@ -332,9 +307,6 @@ function Newspaper({ state }: { state: State }) {
             </div>
           </div>
         </div>
-        <b style={{ ...silk, position: "absolute", right: "5%", top: "30%", transform: "rotate(-14deg)", color: "var(--brick)", border: "6px solid var(--brick)", padding: "0.3vh 1.2vw", fontSize: "3.4vh", letterSpacing: "0.3vw", opacity: 0.85 }}>
-          {w ? "Recount denied" : "Recount ordered"}
-        </b>
       </div>
     </div>
   );
