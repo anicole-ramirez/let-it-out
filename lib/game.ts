@@ -6,7 +6,7 @@ const SPEAKERS: Speaker[] = [...PARTIES, "moderator"];
 export const ROUND_SECONDS = 30;
 const COUNTDOWN_SECONDS = 3;
 const MIN_TAP_MS = 80; // faster taps are ignored: beyond one finger, so multi-finger tapping gains nothing
-const GOAL_PER_PLAYER = 20; // rope steps per player on a team to win instantly
+const GOAL_PER_PLAYER = 60; // rope steps per player on a team to win instantly
 
 export type Player = {
   party: Party;
