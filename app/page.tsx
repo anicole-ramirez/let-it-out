@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { COLORS, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party } from "@/lib/game";
 
@@ -14,7 +14,18 @@ function getId() {
   return id;
 }
 
-const big: CSSProperties = { flex: 1, borderRadius: 0, color: "#fff", fontSize: "3rem", fontWeight: 700 };
+// Ripple from the touch point (plain DOM: it removes itself when the animation ends).
+function ripple(e: PointerEvent<HTMLButtonElement>) {
+  const box = e.currentTarget.getBoundingClientRect();
+  const dot = document.createElement("span");
+  dot.className = "ripple";
+  dot.style.left = `${e.clientX - box.left}px`;
+  dot.style.top = `${e.clientY - box.top}px`;
+  dot.addEventListener("animationend", () => dot.remove());
+  e.currentTarget.appendChild(dot);
+}
+
+const big: CSSProperties = { position: "relative", overflow: "hidden", flex: 1, borderRadius: 0, color: "#fff", fontSize: "3rem", fontWeight: 700 };
 const small: CSSProperties = { fontSize: "1rem", fontWeight: 400 };
 
 // Full-height page with an optional "You are ORANGE" strip.
@@ -140,7 +151,8 @@ export default function Phone() {
   }
 
   // A wrong reaction flashes both buttons red and buzzes, so you notice without looking down.
-  const react = async (type: "clap" | "boo") => {
+  const react = async (type: "clap" | "boo", e: PointerEvent<HTMLButtonElement>) => {
+    ripple(e);
     const r = await (await send({ type, id })).json();
     if (r.right === false) {
       navigator.vibrate?.(80);
@@ -153,11 +165,11 @@ export default function Phone() {
   // Only the first finger on the screen counts (isPrimary); the server also drops taps faster than one finger can make.
   return (
     <Frame party={party} row>
-      <button style={{ ...big, background: wrong ? "#d00" : COLORS[party] }} onPointerDown={(e) => e.isPrimary && react("clap")}>
+      <button style={{ ...big, background: wrong ? "#d00" : COLORS[party] }} onPointerDown={(e) => e.isPrimary && react("clap", e)}>
         CLAP
         <div style={small}>when {party} speaks</div>
       </button>
-      <button style={{ ...big, background: wrong ? "#d00" : COLORS[other] }} onPointerDown={(e) => e.isPrimary && react("boo")}>
+      <button style={{ ...big, background: wrong ? "#d00" : COLORS[other] }} onPointerDown={(e) => e.isPrimary && react("boo", e)}>
         BOO
         <div style={small}>when {other} speaks</div>
       </button>

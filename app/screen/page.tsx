@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { COLORS, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party, type Speaker, type State } from "@/lib/game";
 import { useSounds } from "@/lib/sound";
@@ -22,13 +22,50 @@ const panel: CSSProperties = {
   textAlign: "center",
 };
 
-function StickFigure({ color, lectern }: { color: string; lectern?: boolean }) {
+// Plays a short one-off animation on its box every time `on` changes (a tap landed, the bar moved).
+function Pop({ on, frames, ms = 150, style, children }: { on: unknown; frames: Keyframe[]; ms?: number; style?: CSSProperties; children?: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (mounted.current) ref.current?.animate(frames, ms);
+    mounted.current = true;
+  }, [on, frames, ms]);
   return (
-    <svg viewBox="0 0 60 100" style={{ height: "100%" }} stroke={color} strokeWidth={4} strokeLinecap="round" fill="none">
+    <div ref={ref} style={style}>
+      {children}
+    </div>
+  );
+}
+const HOP: Keyframe[] = [{ transform: "translateY(0)" }, { transform: "translateY(-45%)" }, { transform: "translateY(0)" }];
+const SHAKE: Keyframe[] = [{ transform: "translateX(-20%)" }, { transform: "translateX(20%)" }, { transform: "translateX(-10%)" }, { transform: "translateX(0)" }];
+const BUMP: Keyframe[] = [{ transform: "scaleY(1.25)" }, { transform: "scaleY(1)" }];
+const FLASH: Keyframe[] = [{ opacity: 0.6 }, { opacity: 0 }];
+
+// talking: bobs, waves an arm and moves the mouth. shh: finger to the lips (moderator).
+function StickFigure({ color, lectern, talking, shh }: { color: string; lectern?: boolean; talking?: boolean; shh?: boolean }) {
+  return (
+    <svg viewBox="0 0 60 100" className={talking || shh ? "bob" : undefined} style={{ height: "100%", overflow: "visible" }} stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none">
       <circle cx={30} cy={14} r={10} />
-      <path d="M30 24V60M30 34L12 48M30 34L48 48M30 60L16 92M30 60L44 92" />
+      <path d="M30 24V60M30 34L12 48M30 60L16 92M30 60L44 92" />
+      <path className={talking ? "wave" : undefined} style={{ transformOrigin: "30px 34px" }} d={shh ? "M30 34L44 32L33 18" : "M30 34L48 48"} />
+      {talking && <ellipse className="mouth" style={{ transformOrigin: "30px 18px" }} cx={30} cy={18} rx={3.5} ry={2.5} fill={color} stroke="none" />}
       {lectern && <rect x={10} y={50} width={40} height={46} fill={color} />}
     </svg>
+  );
+}
+
+// Winner-coloured confetti over the whole screen at the end of a round.
+function Confetti({ color }: { color: string }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+      {Array.from({ length: 40 }, (_, i) => (
+        <div
+          key={i}
+          className="confetti"
+          style={{ left: `${(i * 37) % 100}%`, background: i % 3 ? color : "#222", animationDuration: `${2 + (i % 5) * 0.4}s`, animationDelay: `${(i % 10) * 0.15}s` }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -37,9 +74,16 @@ function StickFigure({ color, lectern }: { color: string; lectern?: boolean }) {
 function Rope({ state }: { state: State }) {
   const orange = 50 - (state.rope / state.goal) * 50;
   const pct = { orange: Math.round(orange), purple: 100 - Math.round(orange) };
+  const playing = state.phase === "playing";
+  const leader = orange >= 75 ? "orange" : orange <= 25 ? "purple" : null;
   return (
-    <div style={{ position: "relative", height: 56, borderRadius: 28, overflow: "hidden", background: COLORS.purple, color: "#fff", fontSize: "1.75rem", fontWeight: 800 }}>
-      <div style={{ position: "absolute", inset: 0, width: `${orange}%`, background: COLORS.orange, borderRight: "4px solid #fff", boxSizing: "border-box", transition: "width 0.15s" }} />
+    <Pop on={state.rope} frames={BUMP} ms={120}>
+    <div
+      className={playing && leader ? "glow" : undefined}
+      style={{ position: "relative", height: 56, borderRadius: 28, overflow: "hidden", background: COLORS.purple, color: "#fff", fontSize: "1.75rem", fontWeight: 800, ["--glow" as string]: leader ? COLORS[leader] : "transparent" }}
+    >
+      <div style={{ position: "absolute", inset: 0, width: `${orange}%`, background: COLORS.orange, transition: "width 0.15s" }} />
+      <div className={playing ? "wobble" : undefined} style={{ position: "absolute", left: `${orange}%`, top: 0, bottom: 0, width: 4, marginLeft: -2, background: "#fff", transition: "left 0.15s" }} />
       <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, background: "rgba(0,0,0,0.4)" }} />
       <div style={{ position: "absolute", inset: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 1.5rem" }}>
         {PARTIES.map((p) => (
@@ -49,6 +93,7 @@ function Rope({ state }: { state: State }) {
         ))}
       </div>
     </div>
+    </Pop>
   );
 }
 
@@ -131,13 +176,21 @@ function Scores({ state }: { state: State }) {
   );
 }
 
+// translateX (% of the 150%-wide row) that centres each speaker on the stage.
+const PAN: Record<Speaker, number> = { orange: 16.667, moderator: -16.667, purple: -50 };
+
 function Stage({ state }: { state: State }) {
   // While playing, the whole stage takes the speaker's colour ("camera" on them):
   // the speaker is big and white, the others shrink into the background.
   const live = state.phase === "playing" ? state.speaker : null;
   const voters = Object.values(state.players).filter((p) => p.online);
+  const wrong = (p: Party) => Object.values(state.players).reduce((n, x) => n + (x.party === p ? x.wrong : 0), 0);
   return (
-    <div style={{ ...panel, justifyContent: "flex-start", background: live ? FIG[live] : "transparent", transition: "background 0.2s" }}>
+    <div style={{ ...panel, position: "relative", overflow: "hidden", justifyContent: "flex-start", background: live ? FIG[live] : "transparent", transition: "background 0.2s" }}>
+      {/* A wrong tap flashes that party's half of the stage red. */}
+      {PARTIES.map((p, i) => (
+        <Pop key={p} on={wrong(p)} frames={FLASH} ms={300} style={{ position: "absolute", top: 0, bottom: 0, [i ? "right" : "left"]: 0, width: "50%", background: "#d00", opacity: 0, pointerEvents: "none" }} />
+      ))}
       {live && (
         <div style={{ fontSize: "4rem", fontWeight: 800, color: "#fff", lineHeight: 1 }}>
           {live === "moderator" ? "MODERATOR SPEAKS" : `${live.toUpperCase()} SPEAKS`}
@@ -149,19 +202,17 @@ function Stage({ state }: { state: State }) {
         </b>
       )}
       {state.phase === "ended" && <Scores state={state} />}
-      <div style={{ flex: 1, minHeight: 0, width: "100%", display: state.phase === "ended" ? "none" : "flex", justifyContent: "space-around", alignItems: "flex-end" }}>
-        {(["orange", "moderator", "purple"] as Speaker[]).map((who) => (
-          <div
-            key={who}
-            style={{
-              height: live ? (live === who ? "100%" : "35%") : state.winner === who ? "100%" : "60%",
-              opacity: live ? (live === who ? 1 : 0.3) : !state.winner || state.winner === who ? 1 : 0.3,
-              transition: "height 0.2s, opacity 0.2s",
-            }}
-          >
-            <StickFigure color={live ? "#fff" : FIG[who]} lectern={who !== "moderator"} />
-          </div>
-        ))}
+      {/* The camera pans: the row is wider than the stage and slides until the speaker is centred. */}
+      <div style={{ flex: 1, minHeight: 0, width: "100%", display: live ? "block" : "none" }}>
+        <div style={{ height: "100%", width: "150%", display: "flex", transform: `translateX(${PAN[live ?? "moderator"]}%)`, transition: "transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
+          {(["orange", "moderator", "purple"] as Speaker[]).map((who) => (
+            <div key={who} style={{ flex: 1, height: "100%", display: "flex", justifyContent: "center", alignItems: "flex-end" }}>
+              <div style={{ height: live === who ? "100%" : "35%", opacity: live === who ? 1 : 0.3, transition: "height 0.3s, opacity 0.3s" }}>
+                <StickFigure color="#fff" lectern={who !== "moderator"} talking={live === who && who !== "moderator"} shh={live === who && who === "moderator"} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
       {live && (
         <div style={{ width: "100%", display: "flex", justifyContent: "space-between", gap: "1rem" }}>
@@ -212,20 +263,28 @@ export default function Screen() {
       {state.phase === "countdown" && (
         <div style={{ ...panel, background: "#222", color: "#fff" }}>
           <div>Get ready! Watch this screen, not your phone.</div>
-          <b style={{ fontSize: "12rem", lineHeight: 1 }}>{state.countdown}</b>
+          <b key={state.countdown} className="punch" style={{ fontSize: "12rem", lineHeight: 1 }}>
+            {state.countdown}
+          </b>
         </div>
       )}
       {inRound && <Stage state={state} />}
+      {state.phase === "ended" && state.winner && <Confetti color={COLORS[state.winner]} />}
       {/* Audience: one small figure per joined phone, split by party; disconnected phones fade. */}
       <div style={{ height: "12%", display: "flex", justifyContent: "space-between" }}>
         {PARTIES.map((p, i) => (
           <div key={p} style={{ display: "flex", flexDirection: i ? "row-reverse" : "row", height: "100%", alignItems: "center", gap: "0.5rem", fontSize: "1.5rem", fontWeight: 700, color: COLORS[p] }}>
             {state.bot === p ? "COMPUTER" : players.filter((x) => x.party === p && x.online).length}
             {state.phase !== "lobby" && state.weight[p] > 1 && ` (each tap x${+state.weight[p].toFixed(1)})`}
-            {players.filter((x) => x.party === p).map((x, j) => (
-              <div key={j} style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", fontSize: "1rem", opacity: x.online ? 1 : 0.25 }}>
-                <div style={{ flex: 1, minHeight: 0 }}>
-                  <StickFigure color={COLORS[p]} />
+            {Object.entries(state.players).filter(([, x]) => x.party === p).map(([id, x], j) => (
+              <div key={id} style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", fontSize: "1rem", opacity: x.online ? 1 : 0.25 }}>
+                {/* Each figure hops on its player's right taps and shakes on wrong ones; winners keep jumping. */}
+                <div className={state.phase === "ended" && state.winner === p ? "jump" : undefined} style={{ flex: 1, minHeight: 0, animationDelay: `${j * 0.1}s` }}>
+                  <Pop on={x.right} frames={HOP} style={{ height: "100%" }}>
+                    <Pop on={x.wrong} frames={SHAKE} ms={200} style={{ height: "100%" }}>
+                      <StickFigure color={COLORS[p]} />
+                    </Pop>
+                  </Pop>
                 </div>
                 {x.name}
               </div>
