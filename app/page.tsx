@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { COLORS, STATIC, getId, send, useGameState } from "@/lib/client";
-import { PARTIES, type Party } from "@/lib/game";
+import { LEVELS, PARTIES, type Party } from "@/lib/game";
 import Screen from "./screen/page";
 
 // Phone view: pick a party, then clap or boo while watching the projector.
@@ -103,7 +103,7 @@ function Phone() {
       <Frame party={party}>
         <b className="silk">You are in!</b>
         <div>Look at the big screen. The round starts soon.</div>
-        <div className="panel silk" style={{ fontSize: "1.3rem", padding: "0.8rem", lineHeight: 1.4 }}>
+        <div className="panel" style={{ fontSize: "1.6rem", padding: "0.8rem", lineHeight: 1.3 }}>
           Clap when your candidate talks.
           <br />
           Boo when the other one talks.
@@ -116,7 +116,11 @@ function Phone() {
   if (state.phase === "countdown")
     return (
       <Frame party={party}>
-        <div>Get ready, eyes on the big screen!</div>
+        <b className="silk">
+          Round {state.level} of {LEVELS.length}
+        </b>
+        <div>{LEVELS[state.level - 1].hint}</div>
+        <div>Eyes on the big screen!</div>
         <b key={state.countdown} className="silk punch" style={{ fontSize: "9rem", lineHeight: 1 }}>
           {state.countdown}
         </b>
@@ -128,7 +132,7 @@ function Phone() {
     return (
       <Frame party={party}>
         <b className="silk" style={{ fontSize: "2.6rem", color: w ? COLORS[w] : "var(--cream)" }}>
-          {w === null ? "Draw!" : w === party ? "You won!" : "You lost!"}
+          {state.final ? (state.champion === null ? "A tie!" : state.champion === party ? "You won the election!" : "You lost the election!") : w === null ? `Round ${state.level}: draw!` : w === party ? `Round ${state.level} won!` : `Round ${state.level} lost!`}
         </b>
         <div className="panel" style={{ padding: "0.8rem" }}>
           {me.name}: <b>{me.right}</b> good taps{me.wrong > 0 && `, ${me.wrong} wrong`}
@@ -139,7 +143,7 @@ function Phone() {
           </div>
         ) : (
           <button style={{ ...big, flex: "none", padding: "1.6rem", fontSize: "2rem", boxShadow: "5px 5px 0 #000", background: "var(--gold)" }} disabled={!armed} onClick={() => send({ type: "vote", id })}>
-            Play again
+            {state.final ? "New match" : "Next round"}
           </button>
         )}
       </Frame>

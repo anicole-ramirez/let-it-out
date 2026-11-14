@@ -296,3 +296,51 @@ test("speakers: the pace picks up in the last 10 seconds", () => {
   ms(2400); // timeLeft was 9 when the second one started: 3250 * 0.7 = 2275 ms
   assert.notEqual(state().speaker, second);
 });
+
+// Orange fills the bar and wins the round.
+const winRound = () => {
+  play();
+  const goal = state().goal;
+  for (let i = 0; i < goal; i++, ms(80)) react("a", true);
+};
+
+test("levels: two round wins end the match early; the next start is a new match", () => {
+  join("a", "orange");
+  winRound();
+  assert.deepEqual([state().level, state().wins.orange, state().final, state().champion], [1, 1, false, null]);
+  winRound();
+  assert.deepEqual([state().level, state().wins.orange, state().final, state().champion], [2, 2, true, "orange"]);
+  play();
+  assert.deepEqual([state().level, state().wins.orange, state().final], [1, 0, false]);
+});
+
+test("levels: drawn rounds go to the third level, and an even match is a tie", () => {
+  join("a", "orange");
+  for (const level of [1, 2, 3]) {
+    play(1);
+    assert.equal(state().level, level);
+    ms(1000);
+    assert.equal(state().phase, "ended");
+    assert.equal(state().final, level === 3);
+  }
+  assert.equal(state().champion, null);
+});
+
+test("levels: speeches get shorter with each level", () => {
+  join("a", "orange");
+  r = 0.5; // a speech, not an exchange, on every level
+  const speech = () => {
+    play();
+    const first = state().speaker;
+    let t = 0;
+    while (state().speaker === first) (ms(100), (t += 100));
+    game.dispatch({ type: "reset" });
+    return t;
+  };
+  const one = speech();
+  join("a", "orange");
+  winRound();
+  r = 0.5;
+  const two = speech();
+  assert.ok(two < one, `${two} < ${one}`);
+});

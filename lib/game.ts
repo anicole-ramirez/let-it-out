@@ -3,6 +3,12 @@ export type Party = "orange" | "blue";
 export type Speaker = Party | "moderator";
 export const PARTIES: Party[] = ["orange", "blue"];
 export const ROUND_SECONDS = 30;
+// A match is three rounds ("levels") that get harder; the party that wins more rounds wins the election.
+export const LEVELS = [
+  { name: "Opening statements", hint: "Long speeches. Find your rhythm.", speed: 1, exchange: 0.45, moderator: 0.34, botMs: 350 },
+  { name: "Cross-talk", hint: "Faster, with more quick exchanges.", speed: 0.85, exchange: 0.6, moderator: 0.34, botMs: 310 },
+  { name: "Final showdown", hint: "Fastest, and the moderator keeps cutting in.", speed: 0.72, exchange: 0.6, moderator: 0.45, botMs: 270 },
+] as const;
 const COUNTDOWN_SECONDS = 3;
 const MIN_TAP_MS = 80; // faster taps are ignored: beyond one finger, so multi-finger tapping gains nothing
 const GOAL_PER_PLAYER = 40; // rope steps per player on a team to win instantly
@@ -25,7 +31,11 @@ export type State = {
   speaker: Speaker | null; // who the camera is on
   countdown: number; // seconds until the round begins
   timeLeft: number; // seconds
-  winner: Party | null; // set when ended; null = draw
+  winner: Party | null; // of this round, set when ended; null = draw
+  level: number; // 1..LEVELS.length: the round of the match being played
+  wins: Record<Party, number>; // rounds won in this match
+  final: boolean; // set when ended: the match is over (last level played, or one party cannot be caught)
+  champion: Party | null; // set with final: who won the match; null = tie
   mode: "single" | "multi" | null; // chosen first on the big screen
   bot: Party | null; // single player: the party the computer plays
 };
@@ -53,6 +63,10 @@ const lobby = (): State => ({
   countdown: 0,
   timeLeft: ROUND_SECONDS,
   winner: null,
+  level: 1,
+  wins: { orange: 0, blue: 0 },
+  final: false,
+  champion: null,
   mode: null,
   bot: null,
 });
@@ -111,12 +125,13 @@ const span = (min: number, max: number) => min + Math.random() * (max - min);
 
 function plan(): Beat[] {
   const now = store.state.speaker;
+  const level = LEVELS[store.state.level - 1];
   const pick = Math.random();
-  if (now !== "moderator" && pick >= 0.66) return [{ who: "moderator", ms: span(900, 1600) }];
+  if (now !== "moderator" && pick >= 1 - level.moderator) return [{ who: "moderator", ms: span(900, 1600) }];
   // After a candidate it is the other one's turn; otherwise either.
-  const who: Party = now === "orange" ? "blue" : now === "blue" ? "orange" : pick < 0.33 ? "orange" : "blue";
+  const who: Party = now === "orange" ? "blue" : now === "blue" ? "orange" : Math.random() < 0.5 ? "orange" : "blue";
   const reply: Party = who === "orange" ? "blue" : "orange";
-  if (Math.random() < 0.45) {
+  if (Math.random() < level.exchange) {
     const turns = 3 + Math.floor(Math.random() * 3);
     return Array.from({ length: turns }, (_, i) => ({ who: i % 2 ? reply : who, ms: span(800, 1200) }));
   }
@@ -128,7 +143,7 @@ function nextBeat() {
   if (!store.script.length) store.script = plan();
   const beat = store.script.shift()!;
   s.speaker = beat.who;
-  store.beatLeft = beat.ms * (s.timeLeft <= 10 ? 0.7 : 1);
+  store.beatLeft = beat.ms * LEVELS[s.level - 1].speed * (s.timeLeft <= 10 ? 0.7 : 1);
   store.switchedAt = Date.now();
 }
 
@@ -151,6 +166,11 @@ function end() {
   s.phase = "ended";
   s.speaker = null;
   s.winner = s.rope === 0 ? null : s.rope < 0 ? "orange" : "blue";
+  if (s.winner) s.wins[s.winner]++;
+  // The match ends after the last level, or as soon as the rounds left cannot change the result.
+  const left = LEVELS.length - s.level;
+  s.final = left === 0 || Math.abs(s.wins.orange - s.wins.blue) > left;
+  s.champion = !s.final || s.wins.orange === s.wins.blue ? null : s.wins.orange > s.wins.blue ? "orange" : "blue";
 }
 
 function begin() {
@@ -159,7 +179,7 @@ function begin() {
   store.script = [];
   nextBeat();
   store.beatTimer = setInterval(beatTick, BEAT_MS);
-  if (s.bot) store.botTimer = setInterval(botPull, 350);
+  if (s.bot) store.botTimer = setInterval(botPull, LEVELS[s.level - 1].botMs);
 }
 
 function tick() {
@@ -192,6 +212,14 @@ function botPull() {
 function start(seconds = ROUND_SECONDS, countdown = COUNTDOWN_SECONDS) {
   const s = store.state;
   stopTimers();
+  // After a round that did not finish the match, the next level; otherwise a new match.
+  if (s.phase === "ended" && !s.final) s.level++;
+  else {
+    s.level = 1;
+    s.wins = { orange: 0, blue: 0 };
+  }
+  s.final = false;
+  s.champion = null;
   s.rope = 0;
   s.winner = null;
   s.speaker = null;
