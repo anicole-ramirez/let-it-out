@@ -82,16 +82,24 @@ export default function Phone() {
     }
   };
 
+  // Each button has the colour of the party it applies to: press the colour
+  // the big screen shows. A wrong tap flashes both red.
+  const other = party === "orange" ? "purple" : "orange";
   return (
-    <main style={{ ...full, flexDirection: "row", background: wrong ? "#d00" : COLORS[party] }}>
-      <button style={{ ...big, background: "transparent" }} onPointerDown={() => react("clap")}>
-        CLAP
-        <div style={{ fontSize: "1rem", fontWeight: 400 }}>when {party} speaks</div>
-      </button>
-      <button style={{ ...big, background: "rgba(0,0,0,0.45)" }} onPointerDown={() => react("boo")}>
-        BOO
-        <div style={{ fontSize: "1rem", fontWeight: 400 }}>when {party === "orange" ? "purple" : "orange"} speaks</div>
-      </button>
+    <main style={full}>
+      <div style={{ padding: "0.5rem", fontSize: "1.25rem", fontWeight: 700, background: "#222" }}>
+        You are <span style={{ color: COLORS[party] }}>{party.toUpperCase()}</span>
+      </div>
+      <div style={{ flex: 1, display: "flex" }}>
+        <button style={{ ...big, background: wrong ? "#d00" : COLORS[party] }} onPointerDown={() => react("clap")}>
+          CLAP
+          <div style={{ fontSize: "1rem", fontWeight: 400 }}>when {party} speaks</div>
+        </button>
+        <button style={{ ...big, background: wrong ? "#d00" : COLORS[other] }} onPointerDown={() => react("boo")}>
+          BOO
+          <div style={{ fontSize: "1rem", fontWeight: 400 }}>when {other} speaks</div>
+        </button>
+      </div>
     </main>
   );
 }
