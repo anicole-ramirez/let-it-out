@@ -104,9 +104,11 @@ function Phone() {
         <b className="silk">You are in!</b>
         <div>Look at the big screen. The round starts soon.</div>
         <div className="panel silk" style={{ fontSize: "1.3rem", padding: "0.8rem", lineHeight: 1.4 }}>
-          Tap the colour of the background.
+          Clap when your candidate talks.
           <br />
-          Stop when the moderator speaks.
+          Boo when the other one talks.
+          <br />
+          Hands off when the moderator talks.
         </div>
       </Frame>
     );

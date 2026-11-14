@@ -45,6 +45,8 @@
   --error: #d9473a;
   --orange: #c8693a;
   --blue: #3a8cb0;
+  /* Responsive unit for the big screen: 1vh on a wide screen, a share of the width on a narrow one. */
+  --u: max(min(1vh, 0.62vw), 4.4px);
   --grain: radial-gradient(#00000040 1px, transparent 1px) 0 0 / 4px 4px;
 }
 
@@ -96,14 +98,14 @@ button:disabled {
   box-shadow: 8px 8px 0 #000;
 }
 
-/* CRT glass over everything inside the TV: scanlines and a vignette. */
+/* CRT glass over everything inside the TV: faint scanlines and a vignette (kept light so text stays readable). */
 .crt {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    repeating-linear-gradient(0deg, #00000026 0 2px, transparent 2px 4px),
-    radial-gradient(ellipse at center, transparent 60%, #00000080 100%);
+    repeating-linear-gradient(0deg, #00000014 0 2px, transparent 2px 4px),
+    radial-gradient(ellipse at center, transparent 70%, #00000059 100%);
 }
 
 /* --- Motion --- */
@@ -223,22 +225,9 @@ button:disabled {
   }
 }
 
-/* The TV is landscape: a phone held upright is asked to turn. */
-.turn {
-  display: none;
-}
-@media (orientation: portrait) and (max-width: 600px) {
-  .turn {
-    display: flex;
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    text-align: center;
-    font-size: 1.6rem;
-    background: var(--void);
-    color: var(--gold);
+/* Front page: the boxes beside the masthead are dropped on narrow screens. */
+@media (max-width: 600px) {
+  .ear {
+    display: none;
   }
 }
