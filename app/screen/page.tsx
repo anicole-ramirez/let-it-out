@@ -79,32 +79,51 @@ function Bar({ state }: { state: State }) {
   );
 }
 
-// Names of everyone who joined, per party; disconnected phones are dimmed.
+// Names of everyone who joined, per party; disconnected phones are dimmed. With `scores`, taps
+// per player (wrong ones in red). The text shrinks and splits into columns to fit 20+ players a side.
 function Roster({ state, scores }: { state: State; scores?: boolean }) {
+  const lists = PARTIES.map((p) => Object.values(state.players).filter((x) => x.party === p).sort((a, b) => b.right - a.right));
+  const most = Math.max(1, ...lists.map((l) => l.length));
+  const cols = Math.ceil(most / (scores ? 8 : 6));
+  const size = scores ? [3.6, 2.8, 2.3, 1.9][Math.min(cols, 4) - 1] : [3.2, 2.6, 2.2, 1.9][Math.min(cols, 4) - 1];
   return (
-    <div style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", gap: "2vw", overflow: "hidden" }}>
-      {PARTIES.map((p) => {
-        const list = Object.values(state.players).filter((x) => x.party === p).sort((a, b) => b.right - a.right);
-        return (
-          <div key={p} style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ ...silk, color: SHADE[p], borderBottom: `3px solid ${INK}` }}>
-              {p} camp{state.weight[p] > 1 && scores && ` · taps x${+state.weight[p].toFixed(1)}`}
-            </div>
-            {state.bot === p && <div>The computer</div>}
-            {list.map((x, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: "1vw", opacity: x.online ? 1 : 0.4 }}>
-                <span>{x.name}</span>
+    <div style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", gap: "2vw", overflow: "hidden", fontSize: `${size}vh`, lineHeight: 1.15 }}>
+      {PARTIES.map((p, i) => (
+        <div key={p} style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...silk, fontSize: "2.2vh", color: SHADE[p], borderBottom: `3px solid ${INK}` }}>
+            {p} camp ({lists[i].length}){state.weight[p] > 1 && scores && ` · taps x${+state.weight[p].toFixed(1)}`}
+          </div>
+          {state.bot === p && <div>The computer</div>}
+          <div style={{ columnCount: Math.min(cols, 4), columnGap: "1.5vw" }}>
+            {lists[i].map((x, j) => (
+              <div key={j} style={{ display: "flex", justifyContent: "space-between", gap: "0.5vw", opacity: x.online ? 1 : 0.4, breakInside: "avoid" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.name}</span>
                 {scores && (
-                  <span>
-                    <b>{x.right}</b> taps{x.wrong > 0 && `, ${x.wrong} wrong`}
+                  <span style={{ whiteSpace: "nowrap" }}>
+                    <b>{x.right}</b>
+                    {cols === 1 && " taps"}
+                    {x.wrong > 0 && <span style={{ color: "var(--brick)" }}> −{x.wrong}</span>}
                   </span>
                 )}
               </div>
             ))}
-            {list.length === 0 && state.bot !== p && <div style={{ opacity: 0.5 }}>nobody yet</div>}
           </div>
-        );
-      })}
+          {lists[i].length === 0 && state.bot !== p && <div style={{ opacity: 0.5 }}>nobody yet</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HowTo({ size }: { size: string }) {
+  return (
+    <div style={{ ...silk, fontSize: size, lineHeight: 1.25 }}>
+      <div>
+        Tap the <span style={{ color: SHADE.orange }}>colour</span> of the <span style={{ color: SHADE.blue }}>background</span>.
+      </div>
+      <div>
+        Stop when the <span style={{ background: "#5E5A52", color: "var(--cream)", padding: "0 0.4em" }}>moderator</span> speaks.
+      </div>
     </div>
   );
 }
@@ -140,16 +159,11 @@ function Lobby({ state, count }: { state: State; count: number }) {
           <img alt="Join QR code" style={{ alignSelf: "center", height: "100%", maxWidth: "36%", aspectRatio: "1", minHeight: 0, minWidth: 0, border: `5px solid ${INK}`, imageRendering: "pixelated" }} src={`data:image/svg+xml;utf8,${encodeURIComponent(join.qr)}`} />
         )}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "1.2vh" }}>
-          <b style={{ ...silk, fontSize: "2.6vh", borderBottom: `3px solid ${INK}` }}>Form 01 · Party registration</b>
           <div>
-            <b>1.</b> Scan to join, or open <b>{join?.url}</b>
+            Scan to join, or open <b>{join?.url}</b>
+            {state.mode === "single" && ". The computer plays the other party."}
           </div>
-          <div>
-            <b>2.</b> Type your name and pick a party{state.mode === "single" && ". The computer plays the other one"}.
-          </div>
-          <div>
-            <b>3.</b> Clap your candidate, boo the other one, stay quiet for the moderator.
-          </div>
+          <HowTo size="4.4vh" />
           <Roster state={state} />
           <div style={{ display: "flex", gap: "1vw" }}>
             <button style={{ ...btn, background: GOLD }} disabled={count === 0} onClick={() => send({ type: "start" })}>
@@ -184,30 +198,35 @@ const SPRITE: Record<Speaker, [SpriteName, SpriteName]> = {
 // Where each character stands (% from the left); the spotlight follows the speaker.
 const SPOT: Record<Speaker, number> = { orange: 22, moderator: 50, blue: 78 };
 
+const tag: CSSProperties = { ...silk, display: "block", position: "relative", zIndex: 1, padding: "0 0.2vw", boxShadow: "none", borderWidth: 2, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+
 // The audience from behind: one figure per joined phone (orange left, blue right) with a name
 // tag; each hops on its player's right taps and shakes on wrong ones. Grey extras fill the rest.
 function Crowd({ state }: { state: State }) {
   const entries = Object.entries(state.players);
-  const extra = (i: number, p?: Party) => <PixelSprite key={i} name="crowd_back" slots={{ C: p ? COLORS[p] : "#6E6A60", c: p ? SHADE[p] : "#4E4A42", H: HAIR[i % HAIR.length][0], h: HAIR[i % HAIR.length][1] }} />;
+  const extra = (i: number, p?: Party, style?: CSSProperties) => (
+    <PixelSprite key={i} name="crowd_back" style={style ?? { width: "100%", height: "auto" }} slots={{ C: p ? COLORS[p] : "#6E6A60", c: p ? SHADE[p] : "#4E4A42", H: HAIR[i % HAIR.length][0], h: HAIR[i % HAIR.length][1] }} />
+  );
   return (
     <div style={{ height: "27%", position: "relative", background: INK, overflow: "hidden" }}>
       <div style={{ position: "absolute", top: "4%", left: 0, right: 0, height: "42%", display: "flex", justifyContent: "space-around", filter: "brightness(0.5)" }}>
-        {Array.from({ length: 22 }, (_, i) => extra(i * 3, i < 8 ? "orange" : i > 13 ? "blue" : undefined))}
+        {Array.from({ length: 22 }, (_, i) => extra(i * 3, i < 8 ? "orange" : i > 13 ? "blue" : undefined, {}))}
       </div>
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "1vw", padding: "0 1vw" }}>
         {PARTIES.map((p, i) => (
-          <div key={p} style={{ height: "78%", display: "flex", flexDirection: i ? "row-reverse" : "row", alignItems: "flex-end", gap: "0.6vw" }}>
+          <div key={p} style={{ width: "47%", display: "flex", flexDirection: i ? "row-reverse" : "row", alignItems: "flex-end" }}>
             {state.bot === p && (
-              <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <b className="panel" style={{ ...silk, fontSize: "1.8vh", padding: "0 0.4vw", boxShadow: "none", borderWidth: 3 }}>CPU</b>
-                <div style={{ flex: 1, minHeight: 0 }}>{extra(2, p)}</div>
+              <div style={{ width: "6.5vw" }}>
+                <b className="panel" style={{ ...tag, fontSize: "1.8vh" }}>CPU</b>
+                {extra(2, p)}
               </div>
             )}
-            {entries.filter(([, x]) => x.party === p).map(([id, x], j) => (
-              <div key={id} style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", opacity: x.online ? 1 : 0.3 }}>
-                <b className="panel" style={{ ...silk, fontSize: "1.8vh", padding: "0 0.4vw", boxShadow: "none", borderWidth: 3, whiteSpace: "nowrap", position: "relative", zIndex: 1 }}>{x.name}</b>
-                <Pop on={x.right} frames={HOP} style={{ flex: 1, minHeight: 0 }}>
-                  <Pop on={x.wrong} frames={SHAKE} ms={200} style={{ height: "100%" }}>
+            {entries.filter(([, x]) => x.party === p).map(([id, x], j, all) => (
+              // Up to 7 figures a side at full size; beyond that they share the width.
+              <div key={id} style={{ flex: "0 1 6.5vw", minWidth: 0, opacity: x.online ? 1 : 0.3 }}>
+                <b className="panel" style={{ ...tag, fontSize: all.length > 14 ? "1.2vh" : all.length > 7 ? "1.5vh" : "1.8vh" }}>{x.name}</b>
+                <Pop on={x.right} frames={HOP}>
+                  <Pop on={x.wrong} frames={SHAKE} ms={200}>
                     {extra(j, p)}
                   </Pop>
                 </Pop>

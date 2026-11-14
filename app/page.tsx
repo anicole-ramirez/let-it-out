@@ -107,8 +107,10 @@ export default function Phone() {
       <Frame party={party}>
         <b className="silk">You are in!</b>
         <div>Look at the big screen. The round starts soon.</div>
-        <div className="panel" style={{ fontSize: "1.5rem", padding: "0.8rem" }}>
-          Tap {party.toUpperCase()} to clap when your candidate speaks, {other.toUpperCase()} to boo the other one. Hands off during the moderator.
+        <div className="panel silk" style={{ fontSize: "1.3rem", padding: "0.8rem", lineHeight: 1.4 }}>
+          Tap the colour of the background.
+          <br />
+          Stop when the moderator speaks.
         </div>
       </Frame>
     );
