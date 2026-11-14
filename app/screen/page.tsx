@@ -37,7 +37,6 @@ const SHAKE: Keyframe[] = [{ transform: "translateX(-20%)" }, { transform: "tran
 const QUAKE: Keyframe[] = [{ transform: "translateX(-8px)" }, { transform: "translateX(8px)" }, { transform: "translateX(-8px)" }, { transform: "translateX(0)" }];
 const BUMP: Keyframe[] = [{ transform: "scaleY(1.25)" }, { transform: "scaleY(1)" }];
 const FLASH: Keyframe[] = [{ opacity: 1 }, { opacity: 0 }];
-const FLOAT: Keyframe[] = [{ opacity: 1, transform: "translateY(0)" }, { opacity: 0, transform: "translateY(-50px)" }];
 
 // Flips between false and true every `ms`: the idle/talk sprite swap.
 function useFlip(ms: number) {
@@ -69,9 +68,7 @@ function Bar({ state }: { state: State }) {
           <div className={playing ? "wobble" : undefined} style={{ position: "absolute", left: `${orange}%`, top: 0, bottom: 0, width: 6, marginLeft: -3, background: "var(--cream)", transition: "left 0.15s" }} />
           <div style={{ position: "absolute", inset: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 1vw", textShadow: "2px 2px 0 #000" }}>
             {PARTIES.map((p) => (
-              <span key={p}>
-                {p} {pct[p]}%
-              </span>
+              <span key={p}>{pct[p]}%</span>
             ))}
           </div>
         </div>
@@ -168,37 +165,23 @@ function Lobby({ state, count }: { state: State; count: number }) {
 }
 
 function Countdown({ state }: { state: State }) {
-  const chip = (text: string, bg: string) => <b style={{ ...silk, background: bg, color: INK, border: `4px solid ${INK}`, padding: "0.3vh 1vw" }}>{text}</b>;
   return (
     <div style={{ ...center, background: "var(--void)", fontSize: "4vh" }}>
       <div>Get ready! Watch this screen, not your phone.</div>
       <b key={state.countdown} className="punch" style={{ ...silk, fontSize: "28vh", lineHeight: 1 }}>
         {state.countdown}
       </b>
-      <div style={{ display: "flex", gap: "2vw", alignItems: "center" }}>
-        <span>your candidate {chip("Clap!", "var(--paper)")}</span>
-        <span>the other one {chip("Boo!", "var(--paper)")}</span>
-        <span>the moderator {chip("Shhh!", GOLD)}</span>
-      </div>
     </div>
   );
 }
 
-// What each party must do for the current speaker.
-const todo = (party: Party, speaker: Speaker) => (speaker === "moderator" ? "Shhh" : speaker === party ? "Clap" : "Boo");
-
-const LINES: Record<Speaker, string[]> = {
-  orange: ["Free naps for everyone!", "More holidays, fewer Mondays!", "Pizza is a vegetable!", "Wifi in every forest!", "Two desserts per meal!"],
-  blue: ["Naps are a trap!", "Mondays build character!", "Broccoli for breakfast!", "Shorter queues, shorter speeches!", "Tax the loud chewers!"],
-  moderator: ["Order! Order!", "Quiet in the studio!", "One at a time, please!", "Shhh! We are live!"],
-};
 const SPRITE: Record<Speaker, [SpriteName, SpriteName]> = {
   orange: ["cand_a_idle", "cand_a_talk"],
   blue: ["cand_b_idle", "cand_b_talk"],
   moderator: ["moderator_idle", "moderator_talk"],
 };
-// translateX (% of the 150%-wide row) that centres each speaker under the spotlight.
-const PAN: Record<Speaker, number> = { orange: 16.667, moderator: -16.667, blue: -50 };
+// Where each character stands (% from the left); the spotlight follows the speaker.
+const SPOT: Record<Speaker, number> = { orange: 22, moderator: 50, blue: 78 };
 
 // The audience from behind: one figure per joined phone (orange left, blue right) with a name
 // tag; each hops on its player's right taps and shakes on wrong ones. Grey extras fill the rest.
@@ -236,72 +219,37 @@ function Crowd({ state }: { state: State }) {
   );
 }
 
+// Wide shot of the studio: both candidates and the moderator are always visible; the speaker
+// is lit by the spotlight and talks, the others are dimmed. No text: phones match the colours.
 function Stage({ state }: { state: State }) {
   const live = state.speaker ?? "moderator";
   const talk = useFlip(180);
-  // A new line every time the camera moves.
-  const [shown, setShown] = useState({ live, n: 0 });
-  if (shown.live !== live) setShown({ live, n: shown.n + 1 });
-  const sum = (p: Party, k: "right" | "wrong") => Object.values(state.players).reduce((n, x) => n + (x.party === p ? x[k] : 0), 0);
-  const wrongs = sum("orange", "wrong") + sum("blue", "wrong");
-  const accent = live === "moderator" ? GOLD : COLORS[live];
+  const wrongs = Object.values(state.players).reduce((n, x) => n + x.wrong, 0);
+  const x = SPOT[live];
   return (
     // Any wrong tap: the studio shakes and a red frame flashes.
     <Pop on={wrongs} frames={QUAKE} ms={300} style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden", background: "repeating-linear-gradient(90deg, #4a211d 0 5vw, #3d1a17 5vw 10vw)" }}>
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "9%", background: "var(--floor)", borderTop: `5px solid ${INK}` }} />
-        {/* Spotlight: fixed at the centre, the camera brings the speaker under it. */}
-        <div style={{ position: "absolute", inset: 0, background: "rgba(232, 224, 200, 0.2)", clipPath: "polygon(45% 0, 55% 0, 68% 100%, 32% 100%)" }} />
-        <div style={{ position: "absolute", top: "2%", left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5vh" }}>
-          <b style={{ ...silk, fontSize: "3.4vh", letterSpacing: "0.3vw", color: GOLD, background: INK, border: `4px solid ${GOLD}`, padding: "0.3vh 2vw" }}>The great debate</b>
-          <b style={{ ...silk, fontSize: "2.4vh", color: accent, textShadow: "2px 2px 0 #000" }}>Live · {live === "moderator" ? "moderator" : `${live} candidate`} speaks</b>
-        </div>
-        {/* The camera pans: the row is wider than the stage and slides until the speaker is centred. */}
-        <div style={{ position: "absolute", left: 0, right: 0, top: "24%", bottom: "4%" }}>
-          <div style={{ height: "100%", width: "150%", display: "flex", transform: `translateX(${PAN[live]}%)`, transition: "transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
-            {(["orange", "moderator", "blue"] as Speaker[]).map((who) => {
-              const on = live === who;
-              return (
-                <div key={who} style={{ flex: 1, height: "100%", display: "flex", justifyContent: "center", alignItems: "flex-end", filter: on ? "none" : "brightness(0.55)", transition: "filter 0.3s" }}>
-                  <div className={on ? "bob" : undefined} style={{ position: "relative", height: on ? "100%" : "60%", transition: "height 0.3s" }}>
-                    <PixelSprite name={SPRITE[who][on && talk ? 1 : 0]} slots={SLOTS[who]} flip={who === "blue"} />
-                    {who !== "moderator" && (
-                      <div style={{ position: "absolute", bottom: 0, height: "94%", [who === "orange" ? "left" : "right"]: "104%" }}>
-                        <PixelSprite name="mic_stand" />
-                      </div>
-                    )}
-                    {who === "moderator" && (
-                      <b style={{ ...silk, position: "absolute", left: "-45%", right: "-45%", bottom: 0, height: "36%", background: "#3A332C", border: `5px solid ${INK}`, color: GOLD, fontSize: "2.4vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        Moderator
-                      </b>
-                    )}
-                  </div>
+        <div style={{ position: "absolute", inset: 0, background: "rgba(232, 224, 200, 0.2)", clipPath: `polygon(${x - 4}% 0, ${x + 4}% 0, ${x + 16}% 100%, ${x - 16}% 100%)`, transition: "clip-path 0.3s" }} />
+        <div style={{ position: "absolute", left: 0, right: 0, top: "8%", bottom: "4%" }}>
+          {(["orange", "moderator", "blue"] as Speaker[]).map((who) => {
+            const on = live === who;
+            return (
+              <div key={who} style={{ position: "absolute", bottom: 0, left: `${SPOT[who]}%`, height: who === "moderator" ? "72%" : "100%", transform: "translateX(-50%)", filter: on ? "none" : "brightness(0.5)", transition: "filter 0.3s" }}>
+                <div className={on ? "bob" : undefined} style={{ position: "relative", height: "100%" }}>
+                  <PixelSprite name={SPRITE[who][on && talk ? 1 : 0]} slots={SLOTS[who]} flip={who === "blue"} />
+                  {who !== "moderator" && (
+                    <div style={{ position: "absolute", bottom: 0, height: "94%", [who === "orange" ? "left" : "right"]: "104%" }}>
+                      <PixelSprite name="mic_stand" />
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+                {who === "moderator" && <div style={{ position: "absolute", left: "-25%", right: "-25%", bottom: 0, height: "36%", background: "#3A332C", border: `5px solid ${INK}` }} />}
+              </div>
+            );
+          })}
         </div>
-        <div key={shown.n} className="pop-in" style={{ position: "absolute", left: "59%", top: "26%", maxWidth: "32%", background: "var(--cream)", color: INK, border: `5px solid ${INK}`, boxShadow: "6px 6px 0 #000", fontSize: "4.6vh", lineHeight: 1, padding: "1vh 1vw", textTransform: "uppercase" }}>
-          “{LINES[live][shown.n % LINES[live].length]}”
-        </div>
-        {/* What each party must do now, in the colour of the button to press. */}
-        {PARTIES.map((p, i) => (
-          <div key={p} style={{ position: "absolute", bottom: "5%", [i ? "right" : "left"]: "2%", display: "flex", flexDirection: "column", alignItems: i ? "flex-end" : "flex-start" }}>
-            <Pop on={sum(p, "wrong")} frames={FLOAT} ms={600} style={{ ...silk, opacity: 0, color: "var(--error)", fontSize: "4vh", textShadow: "3px 3px 0 #000" }}>
-              Order!
-            </Pop>
-            <Pop on={sum(p, "right")} frames={FLOAT} ms={500} style={{ ...silk, opacity: 0, color: "var(--cream)", fontSize: "3vh", textShadow: "3px 3px 0 #000" }}>
-              {todo(p, live) === "Boo" ? "Booo!" : "Clap clap"}
-            </Pop>
-            <b style={{ ...silk, fontSize: "2.2vh", background: INK, color: COLORS[p], padding: "0.2vh 0.8vw" }}>
-              {state.bot === p ? "computer" : `${p} team`}
-              {state.weight[p] > 1 && ` · taps x${+state.weight[p].toFixed(1)}`}
-            </b>
-            <b key={live} className="pop-in" style={{ ...silk, fontSize: "7vh", lineHeight: 1, background: accent, color: INK, border: `5px solid ${INK}`, boxShadow: "6px 6px 0 #000", padding: "1vh 1.5vw" }}>
-              {todo(p, live)}!
-            </b>
-          </div>
-        ))}
       </div>
       <Crowd state={state} />
       <Pop on={wrongs} frames={FLASH} ms={300} style={{ position: "absolute", inset: 0, border: "10px solid var(--error)", opacity: 0, pointerEvents: "none" }} />
@@ -407,12 +355,12 @@ export default function Screen() {
       <div style={{ position: "relative", height: "100%", boxSizing: "border-box", border: "22px solid #3A332C", borderRadius: 30, overflow: "hidden", background: "var(--wall)", display: "flex", flexDirection: "column" }}>
         <div style={{ background: INK, padding: "1vh 2vw 1.6vh", display: "flex", flexDirection: "column", gap: "1vh" }}>
           <div style={{ ...silk, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "2.4vh", color: GOLD }}>
-            <span style={{ flex: 1 }}>Let it out!</span>
+            <span style={{ flex: 1, visibility: inRound ? "hidden" : "visible" }}>Let it out!</span>
             {/* Timer turns red for the last 10 seconds. */}
             <b style={{ fontSize: "4.6vh", lineHeight: 1, padding: "0.4vh 1.5vw", border: `5px solid ${hurry ? "var(--error)" : "var(--cream)"}`, color: hurry ? "var(--error)" : "var(--cream)", visibility: inRound ? "visible" : "hidden" }}>
               0:{String(state.timeLeft).padStart(2, "0")}
             </b>
-            <span style={{ flex: 1, textAlign: "right" }}>
+            <span style={{ flex: 1, textAlign: "right", visibility: inRound ? "hidden" : "visible" }}>
               {count} {count === 1 ? "player" : "players"} · CH 01
             </span>
           </div>
