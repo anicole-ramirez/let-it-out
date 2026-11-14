@@ -14,12 +14,15 @@ export type State = {
   speaker: Speaker | null; // who the camera is on
   timeLeft: number; // seconds
   winner: Party | null; // set when ended; null = draw
+  mode: "single" | "multi" | null; // chosen first on the big screen
+  bot: Party | null; // single player: the party the computer plays
 };
 
 type Store = {
   state: State;
   listeners: Set<(s: State) => void>;
   timer?: ReturnType<typeof setInterval>;
+  botTimer?: ReturnType<typeof setInterval>;
   switchIn: number; // seconds until the camera moves
 };
 
@@ -31,11 +34,13 @@ const lobby = (): State => ({
   speaker: null,
   timeLeft: ROUND_SECONDS,
   winner: null,
+  mode: null,
+  bot: null,
 });
 
 // globalThis survives dev hot reloads and is shared across route bundles.
-const g = globalThis as unknown as { __tug2?: Store };
-const store: Store = (g.__tug2 ??= {
+const g = globalThis as unknown as { __tug3?: Store };
+const store: Store = (g.__tug3 ??= {
   state: lobby(),
   listeners: new Set(),
   switchIn: 0,
@@ -63,6 +68,7 @@ function switchSpeaker() {
 function end() {
   const s = store.state;
   clearInterval(store.timer);
+  clearInterval(store.botTimer);
   s.phase = "ended";
   s.speaker = null;
   s.winner = s.rope === 0 ? null : s.rope < 0 ? "orange" : "purple";
@@ -74,15 +80,35 @@ function tick() {
   emit();
 }
 
+// One rope step toward `party`'s side.
+function pull(party: Party) {
+  const s = store.state;
+  s.rope += party === "orange" ? -1 : 1;
+  if (Math.abs(s.rope) >= s.goal) end();
+}
+
+// The bot never makes mistakes but is slower than a fast human.
+function botPull() {
+  const s = store.state;
+  if (!s.bot || s.speaker === "moderator") return;
+  pull(s.bot);
+  emit();
+}
+
 function start(seconds: number) {
   const s = store.state;
   clearInterval(store.timer);
+  clearInterval(store.botTimer);
   s.phase = "playing";
   s.rope = 0;
   s.winner = null;
   s.timeLeft = seconds;
   // Bigger teams pull faster, so the rope gets longer.
   s.goal = GOAL_PER_PLAYER * Math.max(1, Math.ceil(Object.keys(s.players).length / 2));
+  // Single player: the computer plays the party nobody joined.
+  const taken = Object.values(s.players).map((p) => p.party);
+  s.bot = (s.mode === "single" && PARTIES.find((p) => !taken.includes(p))) || null;
+  if (s.bot) store.botTimer = setInterval(botPull, 350);
   switchSpeaker();
   store.timer = setInterval(tick, 1000);
 }
@@ -98,9 +124,7 @@ function react(id: string, kind: "clap" | "boo") {
   const right =
     (kind === "clap" && s.speaker === me) ||
     (kind === "boo" && s.speaker === other);
-  const mySide = me === "orange" ? -1 : 1;
-  s.rope += right ? mySide : -mySide;
-  if (Math.abs(s.rope) >= s.goal) end();
+  pull(right ? me : other);
   return { right };
 }
 
@@ -108,7 +132,8 @@ export type Action =
   | { type: "join"; id: string; party: Party }
   | { type: "clap" | "boo"; id: string }
   | { type: "start"; seconds?: number } // seconds: shorter rounds for tests
-  | { type: "reset" }; // back to the lobby, everyone rejoins
+  | { type: "mode"; mode: "single" | "multi" }
+  | { type: "reset" }; // back to the mode choice, everyone rejoins
 
 // Returns null if the action is rejected.
 export function dispatch(a: Action): { right?: boolean } | null {
@@ -120,8 +145,11 @@ export function dispatch(a: Action): { right?: boolean } | null {
     result = react(a.id, a.type);
   } else if (a?.type === "start" && s.phase !== "playing") {
     start(Number(a.seconds) > 0 ? Number(a.seconds) : ROUND_SECONDS);
+  } else if (a?.type === "mode" && s.phase === "lobby" && ["single", "multi"].includes(a.mode)) {
+    s.mode = a.mode;
   } else if (a?.type === "reset") {
     clearInterval(store.timer);
+    clearInterval(store.botTimer);
     store.state = lobby();
   } else {
     result = null;

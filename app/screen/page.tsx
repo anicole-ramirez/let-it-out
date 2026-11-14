@@ -47,11 +47,24 @@ const HINT: Record<Speaker, string> = {
   moderator: "Quiet! Do not touch your phone.",
 };
 
-function Lobby({ count }: { count: number }) {
+const centered = { flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "2rem" } as const;
+
+function Lobby({ state, count }: { state: State; count: number }) {
   const [join, setJoin] = useState<{ url: string; qr: string } | null>(null);
   useEffect(() => {
     fetch("/api/join").then((r) => r.json()).then(setJoin);
   }, []);
+  if (!state.mode)
+    return (
+      <div style={centered}>
+        <button style={{ ...button, padding: "2rem 3rem" }} onClick={() => send({ type: "mode", mode: "single" })}>
+          Single player
+        </button>
+        <button style={{ ...button, padding: "2rem 3rem" }} onClick={() => send({ type: "mode", mode: "multi" })}>
+          Multiplayer
+        </button>
+      </div>
+    );
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem", fontSize: "2rem" }}>
       {join && (
@@ -61,9 +74,15 @@ function Lobby({ count }: { count: number }) {
       <div>
         Scan to join, or open <b>{join?.url}</b>
       </div>
-      <button style={button} disabled={count === 0} onClick={() => send({ type: "start" })}>
-        {count === 0 ? "Waiting for players…" : `Start (${count} joined)`}
-      </button>
+      {state.mode === "single" && <div>Pick a party on your phone. The computer plays the other one.</div>}
+      <div style={{ display: "flex", gap: "1rem" }}>
+        <button style={button} disabled={count === 0} onClick={() => send({ type: "start" })}>
+          {count === 0 ? "Waiting for players…" : `Start (${count} joined)`}
+        </button>
+        <button style={button} onClick={() => send({ type: "reset" })}>
+          Back
+        </button>
+      </div>
     </div>
   );
 }
@@ -120,11 +139,12 @@ export default function Screen() {
         <b style={{ fontSize: "3rem" }}>0:{String(state.timeLeft).padStart(2, "0")}</b>
       </div>
       <Rope state={state} />
-      {state.phase === "lobby" ? <Lobby count={players.length} /> : <Stage state={state} />}
+      {state.phase === "lobby" ? <Lobby state={state} count={players.length} /> : <Stage state={state} />}
       {/* Audience: one small figure per joined phone, split by party. */}
       <div style={{ height: "12%", display: "flex", justifyContent: "space-between" }}>
         {PARTIES.map((p) => (
-          <div key={p} style={{ display: "flex", height: "100%" }}>
+          <div key={p} style={{ display: "flex", height: "100%", alignItems: "center", fontSize: "1.5rem", fontWeight: 700, color: COLORS[p] }}>
+            {state.bot === p && "COMPUTER"}
             {players.filter((x) => x.party === p).map((_, i) => (
               <StickFigure key={i} color={COLORS[p]} />
             ))}
