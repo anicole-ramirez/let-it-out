@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Let it out! – Intro</title>
+<!-- Copy of pitch/Archivo/intro.html with two added lines: thump() and shatter() post a message to the parent page, which plays the sounds. -->
 <style>
 html,body{margin:0;height:100%;background:#0E0B09;overflow:hidden;font-family:monospace}
 #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
@@ -85,12 +86,12 @@ function crack(n,len){const svg=$('#cracks');let html='';const cx=164+(Math.rand
  html+=`<circle cx="${cx}" cy="${cy}" r="${len/14}" fill="none" stroke="#F4EFE4" stroke-width="1.5"/>`;
  svg.insertAdjacentHTML('beforeend',html);
  svg.querySelectorAll('path').forEach(p=>{if(p.dataset.d)return;p.dataset.d=1;p.animate([{strokeDashoffset:1},{strokeDashoffset:0}],{duration:220,fill:'forwards',easing:'ease-out'})})}
-function thump(power){const tv=$('#tv');
+function thump(power){parent.postMessage({intro:'knock'},location.origin);const tv=$('#tv');
  tv.animate([{transform:'translate(0,0) rotate(0)'},{transform:`translate(${-6*power}px,${-4*power}px) rotate(${-1.6*power}deg)`},{transform:`translate(${5*power}px,0) rotate(${1.2*power}deg)`},{transform:'translate(0,0) rotate(0)'}],{duration:320,easing:'ease-out'});
  $('#inLogo').animate([{transform:'translate(-50%,-50%) scale(1.05)'},{transform:`translate(-50%,-50%) scale(${1.25+.1*power})`},{transform:'translate(-50%,-50%) scale(1.08)'}],{duration:260,fill:'forwards',easing:'ease-out'});
  stage.animate([{transform:stage.style.transform},{transform:stage.style.transform+` translate(${(Math.random()-.5)*10*power}px,${4*power}px)`},{transform:stage.style.transform}],{duration:160});
  ['#a1','#a2'].forEach((s,i)=>{const el=$(s),base=el.style.transform;el.animate([{transform:base},{transform:base+` rotate(${(i?8:-8)*power}deg)`},{transform:base}],{duration:400,easing:'ease-out'})})}
-function shatter(){const box=$('#shards');box.innerHTML='';
+function shatter(){parent.postMessage({intro:'break'},location.origin);const box=$('#shards');box.innerHTML='';
  const pts=[];const per=[[0,0],[SW,0],[SW,SH],[0,SH]];for(let i=0;i<4;i++){const [ax,ay]=per[i],[bx,by]=per[(i+1)%4];const n=5;for(let k=0;k<n;k++){const t=k/n+Math.random()*.08;pts.push([ax+(bx-ax)*t,ay+(by-ay)*t])}}
  const cx=SW/2,cy=SH/2;
  for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];const mx=(p[0]+q[0]+cx)/3,my=(p[1]+q[1]+cy)/3;

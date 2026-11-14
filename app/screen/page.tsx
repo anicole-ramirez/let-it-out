@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Reac
 import { COLORS, GOLD, SHADE, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party, type Speaker, type State } from "@/lib/game";
 import { HAIR, PixelSprite, SLOTS, type SpriteName } from "@/lib/PixelSprite";
-import { useSounds } from "@/lib/sound";
+import { play, unlock, useSounds } from "@/lib/sound";
 
 // Projector view: everything happens inside an old TV. HUD (timer + one bar) on top, then
 // the lobby form, the countdown, the debate studio or the results newspaper.
@@ -312,46 +312,69 @@ function Newspaper({ state }: { state: State }) {
   );
 }
 
-// The designer's intro animation (public/intro.html, copied from pitch/Archivo) plays in a
-// frame over the start screen until any key or tap ("PRESS ANY KEY TO TUNE IN").
-function Intro({ onDone }: { onDone: () => void }) {
+// The designer's intro animation (public/intro.html) plays in a frame over the start screen
+// until any key or tap ("PRESS ANY KEY TO TUNE IN"). Then the camera dives into the TV and the
+// game's own TV switches on underneath.
+function Intro({ onLeave, onDone }: { onLeave: () => void; onDone: () => void }) {
   const ref = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     const frame = ref.current;
     if (!frame) return;
+    let left = false;
+    const leave = () => {
+      if (left) return;
+      left = true;
+      play("knock", { rate: 0.7 });
+      onLeave();
+      frame
+        .animate([{ transform: "scale(1)", opacity: 1 }, { transform: "scale(5)", opacity: 1, offset: 0.7 }, { transform: "scale(8)", opacity: 0 }], { duration: 800, easing: "cubic-bezier(0.7, 0, 0.8, 0.3)", fill: "forwards" })
+        .finished.then(onDone);
+    };
     const hook = () => {
       const doc = frame.contentDocument;
       if (!doc?.head) return;
       doc.head.insertAdjacentHTML("beforeend", "<style>#replay{display:none}</style>");
-      doc.addEventListener("keydown", onDone, true);
-      doc.addEventListener("pointerdown", onDone);
+      doc.addEventListener("keydown", leave, true);
+      doc.addEventListener("pointerdown", leave);
+    };
+    // The intro tells us when the logo knocks on the glass and when the screen breaks.
+    const sound = (e: MessageEvent) => {
+      if (e.origin !== location.origin) return;
+      if (e.data?.intro === "knock") play("knock");
+      if (e.data?.intro === "break") play("crack");
     };
     hook();
     frame.addEventListener("load", hook);
-    window.addEventListener("keydown", onDone);
+    window.addEventListener("keydown", leave);
+    window.addEventListener("message", sound);
     return () => {
       frame.removeEventListener("load", hook);
-      window.removeEventListener("keydown", onDone);
+      window.removeEventListener("keydown", leave);
+      window.removeEventListener("message", sound);
     };
-  }, [onDone]);
-  return <iframe ref={ref} src="/intro.html" title="Intro" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", border: 0, zIndex: 10 }} />;
+  }, [onLeave, onDone]);
+  // The zoom aims at the TV screen inside the intro picture.
+  return <iframe ref={ref} src="/intro.html" title="Intro" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", border: 0, zIndex: 10, transformOrigin: "46.6% 50.6%" }} />;
 }
 
 export default function Screen() {
   const state = useGameState();
   useSounds(state);
-  const [intro, setIntro] = useState(true);
-  const endIntro = useCallback(() => setIntro(false), []);
+  // Start-up on a fresh game: click to start (unlocks sound) -> intro -> dive into the TV -> game.
+  const [boot, setBoot] = useState<"gate" | "intro" | "leaving" | "game">("gate");
+  const leaveIntro = useCallback(() => setBoot("leaving"), []);
+  const endIntro = useCallback(() => setBoot("game"), []);
   if (!state) return <main style={{ padding: "2rem", fontSize: "2rem" }}>Connecting…</main>;
 
   const count = Object.values(state.players).filter((p) => p.online).length;
   const inRound = state.phase === "playing" || state.phase === "ended";
   const hurry = state.phase === "playing" && state.timeLeft < 10;
+  const fresh = state.phase === "lobby" && !state.mode;
 
   return (
     <main style={{ height: "100dvh", boxSizing: "border-box", padding: "1.5vh", background: "var(--void)" }}>
       {/* The TV: bezel, HUD strip, then the current screen, all under the CRT glass. */}
-      <div style={{ position: "relative", height: "100%", boxSizing: "border-box", border: "22px solid #3A332C", borderRadius: 30, overflow: "hidden", background: "var(--wall)", display: "flex", flexDirection: "column" }}>
+      <div className={boot === "leaving" ? "crt-on" : undefined} style={{ position: "relative", height: "100%", boxSizing: "border-box", border: "22px solid #3A332C", borderRadius: 30, overflow: "hidden", background: "var(--wall)", display: "flex", flexDirection: "column" }}>
         <div style={{ background: INK, padding: "1vh 2vw 1.6vh", display: "flex", flexDirection: "column", gap: "1vh" }}>
           <div style={{ ...silk, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "2.4vh", color: GOLD }}>
             <span style={{ flex: 1, visibility: inRound ? "hidden" : "visible" }}>Let it out!</span>
@@ -374,7 +397,20 @@ export default function Screen() {
         <div className="crt" />
       </div>
       {state.phase === "ended" && state.winner && <Confetti color={COLORS[state.winner]} />}
-      {intro && state.phase === "lobby" && !state.mode && <Intro onDone={endIntro} />}
+      {fresh && boot === "gate" && (
+        <div style={{ ...center, position: "fixed", inset: 0, zIndex: 10, background: "var(--void)" }}>
+          <button
+            style={{ ...btn, fontSize: "5vh", padding: "3vh 4vw", background: GOLD }}
+            onClick={() => {
+              unlock();
+              setBoot("intro");
+            }}
+          >
+            Click to start
+          </button>
+        </div>
+      )}
+      {fresh && (boot === "intro" || boot === "leaving") && <Intro onLeave={leaveIntro} onDone={endIntro} />}
     </main>
   );
 }

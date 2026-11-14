@@ -3,7 +3,7 @@
 Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 
 - `/` phone: join a party, then CLAP or BOO; vote "Play again" after a round.
-- `/screen` projector: mode choice, QR code to join, countdown, debate stage, percentage bar. Plays the sound effects (`lib/sound.ts`).
+- `/screen` projector: mode choice, QR code to join, countdown, debate stage, percentage bar.
 - Phone → `POST /api/action` → in-memory state (`lib/game.ts`) → SSE `GET /api/events` → screen and phones.
 
 ## Look
@@ -11,7 +11,8 @@ Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 Retro pixel-art TV debate, after the design handoff in `pitch/letitout-design-handoff/` (inspiration, not followed 1:1).
 
 - Tokens, fonts and shared styles: `app/globals.css`; fonts in `public/fonts/`.
-- Intro: `public/intro.html` (copy of `pitch/Archivo/intro.html`) plays in a frame over the projector start screen until any key or tap.
+- Start-up on the projector: click to start (unlocks sound), then `public/intro.html` (copy of `pitch/Archivo/intro.html`, patched to report its knocks and the break) until any key or tap, then a zoom into the TV.
+- Sound: recordings in `public/audio/` (from `pitch/attachments/`), played by `lib/sound.ts` with rate limits.
 - Characters: `lib/PixelSprite.tsx` draws the pixel maps in `lib/sprites.json`, recoloured per party.
 
 ## Rules
