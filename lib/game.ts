@@ -4,14 +4,23 @@ export type Speaker = Party | "moderator";
 export const PARTIES: Party[] = ["orange", "purple"];
 const SPEAKERS: Speaker[] = [...PARTIES, "moderator"];
 export const ROUND_SECONDS = 30;
+const COUNTDOWN_SECONDS = 3;
 const GOAL_PER_PLAYER = 20; // rope steps per player on a team to win instantly
 
+export type Player = {
+  party: Party;
+  online: boolean; // phone currently connected
+  ready: boolean; // voted for the next round
+};
+
 export type State = {
-  phase: "lobby" | "playing" | "ended";
-  players: Record<string, { party: Party }>;
+  phase: "lobby" | "countdown" | "playing" | "ended";
+  players: Record<string, Player>;
   rope: number; // tug of war: -goal = orange wins, +goal = purple wins
   goal: number;
+  weight: Record<Party, number>; // rope steps per tap; >1 for the smaller team
   speaker: Speaker | null; // who the camera is on
+  countdown: number; // seconds until the round begins
   timeLeft: number; // seconds
   winner: Party | null; // set when ended; null = draw
   mode: "single" | "multi" | null; // chosen first on the big screen
@@ -21,6 +30,7 @@ export type State = {
 type Store = {
   state: State;
   listeners: Set<(s: State) => void>;
+  conns: Record<string, number>; // open phone connections per player id
   timer?: ReturnType<typeof setInterval>;
   botTimer?: ReturnType<typeof setInterval>;
   switchIn: number; // seconds until the camera moves
@@ -31,7 +41,9 @@ const lobby = (): State => ({
   players: {},
   rope: 0,
   goal: GOAL_PER_PLAYER,
+  weight: { orange: 1, purple: 1 },
   speaker: null,
+  countdown: 0,
   timeLeft: ROUND_SECONDS,
   winner: null,
   mode: null,
@@ -39,10 +51,11 @@ const lobby = (): State => ({
 });
 
 // globalThis survives dev hot reloads and is shared across route bundles.
-const g = globalThis as unknown as { __tug3?: Store };
-const store: Store = (g.__tug3 ??= {
+const g = globalThis as unknown as { __tug5?: Store };
+const store: Store = (g.__tug5 ??= {
   state: lobby(),
   listeners: new Set(),
+  conns: {},
   switchIn: 0,
 });
 
@@ -57,6 +70,25 @@ export function subscribe(fn: (s: State) => void) {
 
 function emit() {
   for (const fn of store.listeners) fn(store.state);
+}
+
+const online = () => Object.values(store.state.players).filter((p) => p.online);
+
+// A phone opened its event stream. Returns the disconnect function.
+export function connect(id: string) {
+  const setOnline = () => {
+    const p = store.state.players[id];
+    if (!p || p.online === store.conns[id] > 0) return;
+    p.online = store.conns[id] > 0;
+    maybeRestart(); // a leaver must not block the vote
+    emit();
+  };
+  store.conns[id] = (store.conns[id] ?? 0) + 1;
+  setOnline();
+  return () => {
+    store.conns[id]--;
+    setOnline();
+  };
 }
 
 function switchSpeaker() {
@@ -74,48 +106,74 @@ function end() {
   s.winner = s.rope === 0 ? null : s.rope < 0 ? "orange" : "purple";
 }
 
+function begin() {
+  const s = store.state;
+  s.phase = "playing";
+  switchSpeaker();
+  if (s.bot) store.botTimer = setInterval(botPull, 350);
+}
+
 function tick() {
-  if (--store.state.timeLeft <= 0) end();
+  const s = store.state;
+  if (s.phase === "countdown") {
+    if (--s.countdown <= 0) begin();
+  } else if (--s.timeLeft <= 0) end();
   else if (--store.switchIn <= 0) switchSpeaker();
   emit();
 }
 
-// One rope step toward `party`'s side.
-function pull(party: Party) {
+// Move the rope `steps` toward `party`'s side.
+function pull(party: Party, steps: number) {
   const s = store.state;
-  s.rope += party === "orange" ? -1 : 1;
-  if (Math.abs(s.rope) >= s.goal) end();
+  s.rope += party === "orange" ? -steps : steps;
+  if (Math.abs(s.rope) >= s.goal) {
+    s.rope = Math.sign(s.rope) * s.goal;
+    end();
+  }
 }
 
 // The bot never makes mistakes but is slower than a fast human.
 function botPull() {
   const s = store.state;
   if (!s.bot || s.speaker === "moderator") return;
-  pull(s.bot);
+  pull(s.bot, s.weight[s.bot]);
   emit();
 }
 
-function start(seconds: number) {
+function start(seconds = ROUND_SECONDS, countdown = COUNTDOWN_SECONDS) {
   const s = store.state;
   clearInterval(store.timer);
   clearInterval(store.botTimer);
-  s.phase = "playing";
   s.rope = 0;
   s.winner = null;
+  s.speaker = null;
   s.timeLeft = seconds;
-  // Bigger teams pull faster, so the rope gets longer.
-  s.goal = GOAL_PER_PLAYER * Math.max(1, Math.ceil(Object.keys(s.players).length / 2));
+  s.countdown = countdown;
+  for (const p of Object.values(s.players)) p.ready = false;
   // Single player: the computer plays the party nobody joined.
   const taken = Object.values(s.players).map((p) => p.party);
   s.bot = (s.mode === "single" && PARTIES.find((p) => !taken.includes(p))) || null;
-  if (s.bot) store.botTimer = setInterval(botPull, 350);
-  switchSpeaker();
+  // Fair fight for uneven teams: the rope length follows the bigger team, and a
+  // tap from the smaller team (or the computer) counts for more, so the same
+  // effort per person moves the rope equally for both sides.
+  const size = (p: Party) => Math.max(1, online().filter((x) => x.party === p).length);
+  const biggest = Math.max(size("orange"), size("purple"));
+  s.goal = GOAL_PER_PLAYER * biggest;
+  s.weight = { orange: biggest / size("orange"), purple: biggest / size("purple") };
+  if (countdown > 0) s.phase = "countdown";
+  else begin();
   store.timer = setInterval(tick, 1000);
 }
 
+// Next round starts once every connected phone has voted for it.
+function maybeRestart() {
+  const voters = online();
+  if (store.state.phase === "ended" && voters.length > 0 && voters.every((p) => p.ready)) start();
+}
+
 // Right reaction (clap your own politician, boo the other one) pulls the rope
-// one step to your side. Anything else, incl. any input during the moderator,
-// gives a step to the opponent.
+// to your side. Anything else, incl. any input during the moderator, gives the
+// same distance to the opponent.
 function react(id: string, kind: "clap" | "boo") {
   const s = store.state;
   const me = s.players[id]?.party;
@@ -124,27 +182,35 @@ function react(id: string, kind: "clap" | "boo") {
   const right =
     (kind === "clap" && s.speaker === me) ||
     (kind === "boo" && s.speaker === other);
-  pull(right ? me : other);
+  pull(right ? me : other, s.weight[me]);
   return { right };
 }
 
 export type Action =
   | { type: "join"; id: string; party: Party }
   | { type: "clap" | "boo"; id: string }
-  | { type: "start"; seconds?: number } // seconds: shorter rounds for tests
+  | { type: "vote"; id: string } // phone: ready for the next round
+  | { type: "start"; seconds?: number; countdown?: number } // overrides: shorter rounds for tests
   | { type: "mode"; mode: "single" | "multi" }
   | { type: "reset" }; // back to the mode choice, everyone rejoins
 
 // Returns null if the action is rejected.
 export function dispatch(a: Action): { right?: boolean } | null {
   const s = store.state;
+  const idle = s.phase === "lobby" || s.phase === "ended";
   let result: { right?: boolean } | null = {};
   if (a?.type === "join" && a.id && PARTIES.includes(a.party)) {
-    s.players[a.id] = { party: a.party };
+    s.players[a.id] = { party: a.party, online: store.conns[a.id] > 0, ready: false };
   } else if (a?.type === "clap" || a?.type === "boo") {
     result = react(a.id, a.type);
-  } else if (a?.type === "start" && s.phase !== "playing") {
-    start(Number(a.seconds) > 0 ? Number(a.seconds) : ROUND_SECONDS);
+  } else if (a?.type === "vote" && s.phase === "ended" && s.players[a.id]) {
+    s.players[a.id].ready = true;
+    maybeRestart();
+  } else if (a?.type === "start" && idle) {
+    start(
+      Number(a.seconds) > 0 ? Number(a.seconds) : undefined,
+      a.countdown === undefined ? undefined : Number(a.countdown),
+    );
   } else if (a?.type === "mode" && s.phase === "lobby" && ["single", "multi"].includes(a.mode)) {
     s.mode = a.mode;
   } else if (a?.type === "reset") {

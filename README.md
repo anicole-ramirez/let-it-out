@@ -2,10 +2,18 @@
 
 Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 
-- `/` phone: join a party, then CLAP or BOO.
-- `/screen` projector: QR code to join, debate stage, tug-of-war bar.
-- Rules: the camera switches between both politicians and the moderator. Clap your own politician or boo the other one to pull the rope; any other tap (incl. during the moderator) gives a step to the opponent. Rope end or the higher side after 30 s wins.
-- Phone → `POST /api/action` → in-memory state (`lib/game.ts`) → SSE `GET /api/events` → screen.
+- `/` phone: join a party, then CLAP or BOO; vote "Play again" after a round.
+- `/screen` projector: mode choice, QR code to join, countdown, debate stage, tug-of-war bar.
+- Phone → `POST /api/action` → in-memory state (`lib/game.ts`) → SSE `GET /api/events` → screen and phones.
+
+## Rules
+
+- The camera switches between both politicians and the moderator.
+- Clap your own politician or boo the other one to pull the rope. Any other tap, incl. during the moderator, pulls it the other way.
+- Rope end wins instantly; otherwise the side the knot is on after 30 s wins.
+- Uneven teams: the rope gets longer and taps from the smaller team count for more.
+- Single player: the computer plays the party nobody joined.
+- The next round starts when every connected phone voted "Play again" (or "Start now" on the screen).
 
 ## Run
 
