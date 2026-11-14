@@ -51,7 +51,7 @@ function Frame({ party, row, alarm, children }: { party?: Party; row?: boolean; 
 export default function Phone() {
   const state = useGameState(getId);
   const [wrong, setWrong] = useState(false);
-  const [name, setName] = useState(() => (typeof window === "undefined" ? "" : sessionStorage.getItem("name") ?? ""));
+  const [name, setName] = useState(() => (typeof window === "undefined" ? "" : localStorage.getItem("name") ?? ""));
   // The vote button appears under the thumbs of people still tapping, so it
   // only becomes active a moment after the round ends.
   const [armed, setArmed] = useState(false);
@@ -87,7 +87,7 @@ export default function Phone() {
               style={{ ...big, boxShadow: "5px 5px 0 #000", background: COLORS[p] }}
               disabled={!name.trim()}
               onClick={() => {
-                sessionStorage.setItem("name", name.trim());
+                localStorage.setItem("name", name.trim());
                 send({ type: "join", id, party: p, name });
               }}
             >
