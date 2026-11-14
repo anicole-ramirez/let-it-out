@@ -12,6 +12,8 @@ Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 - Clap your own politician or boo the other one to grow your share of the bar. Any other tap, incl. during the moderator, grows the other side.
 - Filling the whole bar wins instantly; otherwise the bigger share after 30 s wins.
 - Uneven teams: the bar takes more taps to fill and taps from the smaller team count for more.
+- Players enter a name; the end screen lists correct and wrong taps per player.
+- Anti-cheat: only the first finger on the phone counts, and the server ignores taps less than 80 ms apart.
 - Single player: the computer plays the party nobody joined.
 - The next round starts when every connected phone voted "Play again" (or "Start now" on the screen).
 

@@ -26,12 +26,15 @@ export async function GET(request: Request) {
         clearInterval(ping);
         disconnect();
       };
-      request.signal.addEventListener("abort", () => {
+      const onAbort = () => {
         cleanup();
         try {
           controller.close();
         } catch {}
-      });
+      };
+      request.signal.addEventListener("abort", onAbort);
+      // The client may already be gone (e.g. a page that reconnects at once).
+      if (request.signal.aborted) onAbort();
     },
     cancel() {
       cleanup();

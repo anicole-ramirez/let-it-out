@@ -106,6 +106,31 @@ function Lobby({ state, count }: { state: State; count: number }) {
   );
 }
 
+// End of round: taps per player, best first.
+function Scores({ state }: { state: State }) {
+  return (
+    <div style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", gap: "3rem", overflow: "hidden" }}>
+      {PARTIES.map((p) => (
+        <div key={p} style={{ flex: 1, textAlign: "left", color: COLORS[p] }}>
+          <b>{p.toUpperCase()}</b>
+          {state.bot === p && <div>Computer</div>}
+          {Object.values(state.players)
+            .filter((x) => x.party === p)
+            .sort((a, b) => b.right - a.right)
+            .map((x, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #ddd" }}>
+                <span>{x.name}</span>
+                <span>
+                  <b>{x.right}</b> taps{x.wrong > 0 && `, ${x.wrong} wrong`}
+                </span>
+              </div>
+            ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Stage({ state }: { state: State }) {
   // While playing, the whole stage takes the speaker's colour ("camera" on them):
   // the speaker is big and white, the others shrink into the background.
@@ -123,7 +148,8 @@ function Stage({ state }: { state: State }) {
           {state.winner ? `${state.winner.toUpperCase()} WINS!` : "DRAW!"}
         </b>
       )}
-      <div style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", justifyContent: "space-around", alignItems: "flex-end" }}>
+      {state.phase === "ended" && <Scores state={state} />}
+      <div style={{ flex: 1, minHeight: 0, width: "100%", display: state.phase === "ended" ? "none" : "flex", justifyContent: "space-around", alignItems: "flex-end" }}>
         {(["orange", "moderator", "purple"] as Speaker[]).map((who) => (
           <div
             key={who}
@@ -197,8 +223,11 @@ export default function Screen() {
             {state.bot === p ? "COMPUTER" : players.filter((x) => x.party === p && x.online).length}
             {state.phase !== "lobby" && state.weight[p] > 1 && ` (each tap x${+state.weight[p].toFixed(1)})`}
             {players.filter((x) => x.party === p).map((x, j) => (
-              <div key={j} style={{ height: "100%", opacity: x.online ? 1 : 0.25 }}>
-                <StickFigure color={COLORS[p]} />
+              <div key={j} style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", fontSize: "1rem", opacity: x.online ? 1 : 0.25 }}>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  <StickFigure color={COLORS[p]} />
+                </div>
+                {x.name}
               </div>
             ))}
           </div>

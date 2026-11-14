@@ -5,10 +5,14 @@ export const PARTIES: Party[] = ["orange", "purple"];
 const SPEAKERS: Speaker[] = [...PARTIES, "moderator"];
 export const ROUND_SECONDS = 30;
 const COUNTDOWN_SECONDS = 3;
+const MIN_TAP_MS = 80; // faster taps are ignored: beyond one finger, so multi-finger tapping gains nothing
 const GOAL_PER_PLAYER = 20; // rope steps per player on a team to win instantly
 
 export type Player = {
   party: Party;
+  name: string;
+  right: number; // correct taps this round
+  wrong: number; // wrong taps this round
   online: boolean; // phone currently connected
   ready: boolean; // voted for the next round
 };
@@ -31,6 +35,7 @@ type Store = {
   state: State;
   listeners: Set<(s: State) => void>;
   conns: Record<string, number>; // open phone connections per player id
+  lastTap: Record<string, number>; // time of each player's last counted tap
   timer?: ReturnType<typeof setInterval>;
   botTimer?: ReturnType<typeof setInterval>;
   switchIn: number; // seconds until the camera moves
@@ -51,11 +56,12 @@ const lobby = (): State => ({
 });
 
 // globalThis survives dev hot reloads and is shared across route bundles.
-const g = globalThis as unknown as { __tug5?: Store };
-const store: Store = (g.__tug5 ??= {
+const g = globalThis as unknown as { __tug6?: Store };
+const store: Store = (g.__tug6 ??= {
   state: lobby(),
   listeners: new Set(),
   conns: {},
+  lastTap: {},
   switchIn: 0,
 });
 
@@ -149,7 +155,7 @@ function start(seconds = ROUND_SECONDS, countdown = COUNTDOWN_SECONDS) {
   s.speaker = null;
   s.timeLeft = seconds;
   s.countdown = countdown;
-  for (const p of Object.values(s.players)) p.ready = false;
+  for (const p of Object.values(s.players)) Object.assign(p, { ready: false, right: 0, wrong: 0 });
   // Single player: the computer plays the party nobody joined.
   const taken = Object.values(s.players).map((p) => p.party);
   s.bot = (s.mode === "single" && PARTIES.find((p) => !taken.includes(p))) || null;
@@ -178,16 +184,20 @@ function react(id: string, kind: "clap" | "boo") {
   const s = store.state;
   const me = s.players[id]?.party;
   if (!me || s.phase !== "playing") return null;
+  const now = Date.now();
+  if (now - (store.lastTap[id] ?? 0) < MIN_TAP_MS) return {}; // too fast: not counted
+  store.lastTap[id] = now;
   const other: Party = me === "orange" ? "purple" : "orange";
   const right =
     (kind === "clap" && s.speaker === me) ||
     (kind === "boo" && s.speaker === other);
+  s.players[id][right ? "right" : "wrong"]++;
   pull(right ? me : other, s.weight[me]);
   return { right };
 }
 
 export type Action =
-  | { type: "join"; id: string; party: Party }
+  | { type: "join"; id: string; party: Party; name?: string }
   | { type: "clap" | "boo"; id: string }
   | { type: "vote"; id: string } // phone: ready for the next round
   | { type: "start"; seconds?: number; countdown?: number } // overrides: shorter rounds for tests
@@ -200,7 +210,8 @@ export function dispatch(a: Action): { right?: boolean } | null {
   const idle = s.phase === "lobby" || s.phase === "ended";
   let result: { right?: boolean } | null = {};
   if (a?.type === "join" && a.id && PARTIES.includes(a.party)) {
-    s.players[a.id] = { party: a.party, online: store.conns[a.id] > 0, ready: false };
+    const name = String(a.name ?? "").trim().slice(0, 12) || "Player";
+    s.players[a.id] = { party: a.party, name, right: 0, wrong: 0, online: store.conns[a.id] > 0, ready: false };
   } else if (a?.type === "clap" || a?.type === "boo") {
     result = react(a.id, a.type);
   } else if (a?.type === "vote" && s.phase === "ended" && s.players[a.id]) {

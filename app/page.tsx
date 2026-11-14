@@ -50,6 +50,7 @@ function Frame({ party, row, children }: { party?: Party; row?: boolean; childre
 export default function Phone() {
   const state = useGameState(getId);
   const [wrong, setWrong] = useState(false);
+  const [name, setName] = useState(() => (typeof window === "undefined" ? "" : sessionStorage.getItem("name") ?? ""));
   // The vote button appears under the thumbs of people still tapping, so it
   // only becomes active a moment after the round ends.
   const [armed, setArmed] = useState(false);
@@ -68,11 +69,25 @@ export default function Phone() {
   if (!me)
     return (
       <Frame>
-        Pick your party
+        <input
+          autoFocus
+          placeholder="Your name"
+          maxLength={12}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ font: "inherit", padding: "0.75rem", borderRadius: 12, border: 0, textAlign: "center" }}
+        />
+        {name.trim() ? "Pick your party" : "Type your name first"}
         {PARTIES.map((p) => {
           const n = online.filter((x) => x.party === p).length;
           return (
-            <button key={p} style={{ ...big, borderRadius: 16, background: COLORS[p] }} onClick={() => send({ type: "join", id, party: p })}>
+            <button key={p} style={{ ...big, borderRadius: 16, background: COLORS[p] }}
+              disabled={!name.trim()}
+              onClick={() => {
+                sessionStorage.setItem("name", name.trim());
+                send({ type: "join", id, party: p, name });
+              }}
+            >
               {p.toUpperCase()}
               <div style={small}>{n === 1 ? "1 player" : `${n} players`}</div>
             </button>
@@ -108,6 +123,9 @@ export default function Phone() {
     return (
       <Frame party={party}>
         <b style={{ fontSize: "3rem", color: w ? COLORS[w] : "#fff" }}>{w === null ? "Draw!" : w === party ? "You won!" : "You lost!"}</b>
+        <div>
+          {me.name}: <b>{me.right}</b> good taps{me.wrong > 0 && `, ${me.wrong} wrong`}
+        </div>
         {me.ready ? (
           <div>
             Waiting for the others… ({online.filter((p) => p.ready).length}/{online.length} ready)
@@ -132,13 +150,14 @@ export default function Phone() {
   };
 
   // Each button has the colour of the party it applies to: press the colour the big screen shows.
+  // Only the first finger on the screen counts (isPrimary); the server also drops taps faster than one finger can make.
   return (
     <Frame party={party} row>
-      <button style={{ ...big, background: wrong ? "#d00" : COLORS[party] }} onPointerDown={() => react("clap")}>
+      <button style={{ ...big, background: wrong ? "#d00" : COLORS[party] }} onPointerDown={(e) => e.isPrimary && react("clap")}>
         CLAP
         <div style={small}>when {party} speaks</div>
       </button>
-      <button style={{ ...big, background: wrong ? "#d00" : COLORS[other] }} onPointerDown={() => react("boo")}>
+      <button style={{ ...big, background: wrong ? "#d00" : COLORS[other] }} onPointerDown={(e) => e.isPrimary && react("boo")}>
         BOO
         <div style={small}>when {other} speaks</div>
       </button>
