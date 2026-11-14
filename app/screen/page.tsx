@@ -31,42 +31,22 @@ function StickFigure({ color, lectern }: { color: string; lectern?: boolean }) {
   );
 }
 
-// One bar, like a rope: the knot moves toward the side that is winning.
+// One bar: each party's colour fills its share, so the bigger colour is winning.
+// 50/50 at the start; a party that fills the whole bar wins instantly.
 function Rope({ state }: { state: State }) {
+  const orange = 50 - (state.rope / state.goal) * 50;
+  const pct = { orange: Math.round(orange), purple: 100 - Math.round(orange) };
   return (
-    <div
-      style={{
-        position: "relative",
-        height: 48,
-        borderRadius: 24,
-        background: `linear-gradient(90deg, ${COLORS.orange} 50%, ${COLORS.purple} 50%)`,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "0 1.5rem",
-        color: "#fff",
-        fontSize: "1.5rem",
-        fontWeight: 800,
-      }}
-    >
-      <span>ORANGE</span>
-      <span>PURPLE</span>
-      <div style={{ position: "absolute", left: "50%", top: -6, bottom: -6, width: 2, background: "#000" }} />
-      <div
-        style={{
-          position: "absolute",
-          left: `${50 + (state.rope / state.goal) * 50}%`,
-          top: -10,
-          bottom: -10,
-          width: 20,
-          marginLeft: -10,
-          borderRadius: 10,
-          background: "#fff",
-          border: "4px solid #000",
-          boxSizing: "border-box",
-          transition: "left 0.15s",
-        }}
-      />
+    <div style={{ position: "relative", height: 56, borderRadius: 28, overflow: "hidden", background: COLORS.purple, color: "#fff", fontSize: "1.75rem", fontWeight: 800 }}>
+      <div style={{ position: "absolute", inset: 0, width: `${orange}%`, background: COLORS.orange, borderRight: "4px solid #fff", boxSizing: "border-box", transition: "width 0.15s" }} />
+      <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, background: "rgba(0,0,0,0.4)" }} />
+      <div style={{ position: "absolute", inset: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 1.5rem" }}>
+        {PARTIES.map((p) => (
+          <span key={p}>
+            {p.toUpperCase()} {pct[p]}%
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
