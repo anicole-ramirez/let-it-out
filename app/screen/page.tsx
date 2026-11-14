@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { COLORS, send, useGameState } from "@/lib/client";
-import { PARTIES, type Speaker, type State } from "@/lib/game";
+import { PARTIES, type Party, type Speaker, type State } from "@/lib/game";
 
 // Projector view: tug-of-war bar, debate stage with stick figures, audience.
 const FIG = { ...COLORS, moderator: "#444" } as const;
@@ -41,11 +41,9 @@ function Rope({ state }: { state: State }) {
   );
 }
 
-const HINT: Record<Speaker, string> = {
-  orange: "Orange: clap! Purple: boo!",
-  purple: "Purple: clap! Orange: boo!",
-  moderator: "Quiet! Do not touch your phone.",
-};
+// What each party must do for the current speaker.
+const todo = (party: Party, speaker: Speaker) =>
+  speaker === "moderator" ? "QUIET" : speaker === party ? "CLAP" : "BOO";
 
 const centered = { flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "2rem" } as const;
 
@@ -88,26 +86,51 @@ function Lobby({ state, count }: { state: State; count: number }) {
 }
 
 function Stage({ state }: { state: State }) {
-  const on = (who: Speaker) => state.phase !== "playing" || state.speaker === who;
+  // While playing, the whole stage takes the speaker's colour ("camera" on them):
+  // the speaker is big and white, the others shrink into the background.
+  const live = state.phase === "playing" ? state.speaker : null;
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "1rem",
+        padding: "1rem",
+        borderRadius: 24,
+        background: live ? FIG[live] : "transparent",
+        transition: "background 0.2s",
+      }}
+    >
+      {live && (
+        <div style={{ fontSize: "4rem", fontWeight: 800, color: "#fff", lineHeight: 1 }}>
+          {live === "moderator" ? "MODERATOR SPEAKS" : `${live.toUpperCase()} SPEAKS`}
+        </div>
+      )}
       <div style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", justifyContent: "space-around", alignItems: "flex-end" }}>
         {(["orange", "moderator", "purple"] as Speaker[]).map((who) => (
           <div
             key={who}
             style={{
-              height: who === "moderator" ? "70%" : "100%",
-              opacity: on(who) ? 1 : 0.15,
-              transform: state.speaker === who ? "scale(1.1)" : "none",
-              transition: "opacity 0.2s, transform 0.2s",
+              height: !live ? (who === "moderator" ? "70%" : "100%") : live === who ? "100%" : "35%",
+              opacity: !live || live === who ? 1 : 0.3,
+              transition: "height 0.2s, opacity 0.2s",
             }}
           >
-            <StickFigure color={FIG[who]} lectern={who !== "moderator"} />
+            <StickFigure color={live ? "#fff" : FIG[who]} lectern={who !== "moderator"} />
           </div>
         ))}
       </div>
-      {state.phase === "playing" && state.speaker && (
-        <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>{HINT[state.speaker]}</div>
+      {live && (
+        <div style={{ width: "100%", display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+          {PARTIES.map((p) => (
+            <div key={p} style={{ padding: "0.5rem 1.5rem", borderRadius: 16, background: "#fff", color: COLORS[p], fontSize: "3rem", fontWeight: 800 }}>
+              {p.toUpperCase()}: {todo(p, live)}
+            </div>
+          ))}
+        </div>
       )}
       {state.phase === "ended" && (
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
