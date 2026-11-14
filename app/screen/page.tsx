@@ -4,6 +4,7 @@ import { COLORS, GOLD, SHADE, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party, type Speaker, type State } from "@/lib/game";
 import { HAIR, PixelSprite, SLOTS, type SpriteName } from "@/lib/PixelSprite";
 import { play, unlock, useSounds } from "@/lib/sound";
+import THROWABLES from "@/lib/throwables.json";
 
 // Projector view: everything happens inside an old TV. HUD (timer + one bar) on top, then
 // the lobby form, the countdown, the debate studio or the results newspaper.
@@ -219,6 +220,10 @@ function Crowd({ state }: { state: State }) {
   );
 }
 
+// What the crowd throws (drawings from the second design, pitch/second design.html).
+const BOOED = ["tomato", "can", "egg", "shoe", "banana", "paper"] as const;
+const CHEERED = ["bouquet", "rose", "bra", "teddy", "heart", "laurel"] as const;
+
 // Wide shot of the studio: both candidates and the moderator are always visible; the speaker
 // is lit by the spotlight and talks, the others are dimmed. No text: the whole set takes the
 // colour of the phone button to tap.
@@ -227,6 +232,41 @@ function Stage({ state }: { state: State }) {
   const talk = useFlip(180);
   const wrongs = Object.values(state.players).reduce((n, x) => n + x.wrong, 0);
   const x = SPOT[live];
+  // Every time the bar moves, the side that gained throws something at the speaker from its part
+  // of the crowd: flowers and teddies for its own candidate, tomatoes and shoes for the other one.
+  // At most one throw per 100 ms and 24 in the air.
+  const air = useRef<HTMLDivElement>(null);
+  const seen = useRef({ rope: state.rope, at: 0 });
+  useEffect(() => {
+    const moved = state.rope - seen.current.rope;
+    seen.current.rope = state.rope;
+    const box = air.current;
+    const now = performance.now();
+    if (!moved || !box || live === "moderator" || now - seen.current.at < 100 || box.childElementCount >= 24) return;
+    seen.current.at = now;
+    const from: Party = moved < 0 ? "orange" : "blue";
+    const kinds = from === live ? CHEERED : BOOED;
+    const kind = kinds[Math.floor(Math.random() * kinds.length)];
+    const { width: w, height: h } = box.getBoundingClientRect();
+    const size = h * 0.16;
+    const sx = (from === "orange" ? 0.04 + Math.random() * 0.2 : 0.76 + Math.random() * 0.2) * w;
+    const dx = (SPOT[live] / 100 + (Math.random() - 0.5) * 0.08) * w - sx;
+    const dy = -h * (0.45 + Math.random() * 0.15);
+    const item = document.createElement("div");
+    item.style.cssText = `position:absolute;left:${sx - size / 2}px;top:${h - size / 2}px;width:${size}px;height:${size}px`;
+    item.innerHTML = `<svg viewBox="0 0 120 120" width="100%" height="100%"><g transform="rotate(${Math.round(Math.random() * 60 - 30)} 60 60)">${THROWABLES[kind]}</g></svg>`;
+    box.appendChild(item);
+    // Arc up to the speaker, then drop and fade.
+    item.animate(
+      [
+        { transform: "translate(0, 0)" },
+        { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - h * 0.2}px)` },
+        { transform: `translate(${dx}px, ${dy}px)` },
+        { transform: `translate(${dx}px, ${dy + h * 0.14}px)`, opacity: 0 },
+      ],
+      { duration: 900, easing: "ease-in" },
+    ).onfinish = () => item.remove();
+  }, [state.rope, live]);
   // The curtains take the colour of the button to tap; grey for the moderator (no button is grey).
   const [c1, c2] = live === "moderator" ? ["#5E5A52", "#4E4A42"] : [COLORS[live], SHADE[live]];
   return (
@@ -255,6 +295,7 @@ function Stage({ state }: { state: State }) {
         </div>
       </div>
       <Crowd state={state} />
+      <div ref={air} style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }} />
       <Pop on={wrongs} frames={FLASH} ms={300} style={{ position: "absolute", inset: 0, border: "10px solid var(--error)", opacity: 0, pointerEvents: "none" }} />
     </Pop>
   );

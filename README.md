@@ -13,6 +13,7 @@ Retro pixel-art TV debate, after the design handoff in `pitch/letitout-design-ha
 - Tokens, fonts and shared styles: `app/globals.css`; fonts in `public/fonts/`.
 - Start-up on the projector: click to start (unlocks sound), then `public/intro.html` (copy of `pitch/Archivo/intro.html`, patched to report its knocks and the break) until any key or tap, then a zoom into the TV.
 - Sound: recordings in `public/audio/` (from `pitch/attachments/`), played by `lib/sound.ts` with rate limits.
+- Throwables: taps throw items at the speaker (flowers and teddies when cheering, tomatoes and shoes when booing). Drawings in `lib/throwables.json`, extracted from `pitch/second design.html`.
 - Characters: `lib/PixelSprite.tsx` draws the pixel maps in `lib/sprites.json`, recoloured per party.
 
 ## Rules
