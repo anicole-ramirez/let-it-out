@@ -22,6 +22,7 @@ Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 ```
 npm install
 npm run dev
+npm test   # game logic unit tests, under a second
 ```
 
 Open `http://localhost:3000/screen` on the projector; phones on the same Wi-Fi scan the QR code.
