@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import type { Action, State } from "./game";
 
-export const COLORS = { orange: "#e8833a", purple: "#7b3fc4" } as const;
+export const COLORS = { orange: "#C8693A", blue: "#3A8CB0" } as const;
+export const SHADE = { orange: "#8E4526", blue: "#25607C" } as const;
+export const GOLD = "#C9A43A";
 
 // Live game state from the server (EventSource reconnects on its own).
 // Phones pass their id so the server can track who is connected.

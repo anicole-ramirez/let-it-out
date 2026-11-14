@@ -7,7 +7,7 @@ import type { Party } from "./game";
 type Game = typeof import("./game");
 let game: Game;
 let n = 0; // cache-busting counter: each test gets a fresh module + store
-let r = 0; // Math.random value: 0 → orange speaks, 0.4 → purple, 0.7 → moderator
+let r = 0; // Math.random value: 0 → orange speaks, 0.4 → blue, 0.7 → moderator
 
 // Resolve the "@/" alias (used by route handlers), keeping the importer's query
 // so the route shares the test's fresh game module.
@@ -25,7 +25,7 @@ beforeEach(async () => {
   mock.timers.enable({ apis: ["setInterval", "Date"], now: 1_000_000 });
   mock.method(Math, "random", () => r);
   r = 0;
-  delete (globalThis as { __tug6?: unknown }).__tug6;
+  delete (globalThis as { __tug7?: unknown }).__tug7;
   game = await import(`./game.ts?t=${++n}`);
 });
 
@@ -93,8 +93,8 @@ test("online: SSE request already aborted counts as offline", async () => {
 
 test("vote: next round starts when every online player voted", () => {
   join("a", "orange");
-  join("b", "purple");
-  game.dispatch({ type: "join", id: "c", party: "purple" }); // offline: no vote needed
+  join("b", "blue");
+  game.dispatch({ type: "join", id: "c", party: "blue" }); // offline: no vote needed
   play(1);
   ms(1000);
   assert.equal(state().phase, "ended");
@@ -106,7 +106,7 @@ test("vote: next round starts when every online player voted", () => {
 
 test("vote: a leaver does not block the vote", () => {
   join("a", "orange");
-  const offB = join("b", "purple");
+  const offB = join("b", "blue");
   play(1);
   ms(1000);
   game.dispatch({ type: "vote", id: "a" });
@@ -169,7 +169,7 @@ test("round: no stale timers after reset or restart", () => {
 
 test("score: right and wrong reactions, per player", () => {
   join("a", "orange");
-  join("b", "purple");
+  join("b", "blue");
   play(); // orange speaks
   assert.deepEqual(tap("a", "clap"), { right: true }); // clap own
   assert.equal(state().rope, -1);
@@ -194,7 +194,7 @@ test("score: any tap during the moderator is wrong", () => {
   ms(100);
   tap("a", "boo");
   assert.equal(player("a").wrong, 2);
-  assert.equal(state().rope, 2); // toward purple
+  assert.equal(state().rope, 2); // toward blue
 });
 
 test("score: taps faster than MIN_TAP_MS are ignored", () => {
@@ -213,13 +213,13 @@ test("score: uneven teams get weights, goal and a clamped rope", () => {
   const perPlayer = state().goal; // lobby goal = one player per team
   join("a1", "orange");
   join("a2", "orange");
-  join("b", "purple");
+  join("b", "blue");
   game.dispatch({ type: "join", id: "a3", party: "orange" }); // offline: not counted
   play();
   const goal = state().goal;
   assert.equal(goal, 2 * perPlayer);
-  assert.deepEqual(state().weight, { orange: 1, purple: 2 });
-  react("a1", false); // +1 toward purple
+  assert.deepEqual(state().weight, { orange: 1, blue: 2 });
+  react("a1", false); // +1 toward blue
   // b's wrong taps pull 2 each toward orange; stop one step before the goal.
   while (state().rope > 1 - goal && state().phase === "playing") {
     react("b", false);
@@ -236,7 +236,7 @@ test("single player: bot plays the empty party, not during the moderator", () =>
   join("a", "orange");
   r = 0.7;
   play(1);
-  assert.equal(state().bot, "purple");
+  assert.equal(state().bot, "blue");
   ms(1000);
   assert.equal(state().rope, 0); // moderator the whole round
   r = 0; // next round: orange speaks

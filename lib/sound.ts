@@ -19,7 +19,7 @@ function beep(freq: number, ms = 120, type: OscillatorType = "square", vol = 0.1
   osc.stop(t + ms / 1000);
 }
 
-const SPEAKER_TONE = { orange: 520, purple: 660, moderator: 200 } as const;
+const SPEAKER_TONE = { orange: 520, blue: 660, moderator: 200 } as const;
 
 // Plays sounds for state changes on the projector.
 export function useSounds(state: State | null) {

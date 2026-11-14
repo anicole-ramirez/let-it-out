@@ -25,33 +25,23 @@ function ripple(e: PointerEvent<HTMLButtonElement>) {
   e.currentTarget.appendChild(dot);
 }
 
-const big: CSSProperties = { position: "relative", overflow: "hidden", flex: 1, borderRadius: 0, color: "#fff", fontSize: "3rem", fontWeight: 700 };
-const small: CSSProperties = { fontSize: "1rem", fontWeight: 400 };
+const big: CSSProperties = { position: "relative", overflow: "hidden", flex: 1, fontSize: "3rem", boxShadow: "none" };
+const small: CSSProperties = { fontFamily: "VT323", fontSize: "1.4rem", fontWeight: 400, textTransform: "none" };
 
-// Full-height page with an optional "You are ORANGE" strip.
-function Frame({ party, row, children }: { party?: Party; row?: boolean; children: ReactNode }) {
+// Full-height page with a "You are ORANGE" strip; `row` = the two game buttons side by side.
+function Frame({ party, row, alarm, children }: { party?: Party; row?: boolean; alarm?: boolean; children: ReactNode }) {
   return (
-    <main style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "#222", color: "#fff", textAlign: "center" }}>
-      <div style={{ padding: "0.5rem", fontSize: "1.25rem", fontWeight: 700 }}>
+    <main style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--grain), var(--wall)", textAlign: "center", boxSizing: "border-box", border: alarm ? "8px solid var(--error)" : "8px solid var(--ink)" }}>
+      <div className="silk" style={{ padding: "0.5rem", fontSize: "1.1rem", background: "var(--ink)", color: "var(--gold)" }}>
         {party ? (
           <>
-            You are <span style={{ color: COLORS[party] }}>{party.toUpperCase()}</span>
+            You are <span style={{ color: COLORS[party] }}>{party}</span>
           </>
         ) : (
           "Let it out!"
         )}
       </div>
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: row ? "row" : "column",
-          justifyContent: "center",
-          gap: row ? 0 : "1.5rem",
-          padding: row ? 0 : "1.5rem",
-          fontSize: "1.75rem",
-        }}
-      >
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: row ? "row" : "column", justifyContent: "center", gap: row ? 0 : "1.2rem", padding: row ? 0 : "1.2rem", fontSize: "1.9rem", lineHeight: 1.1 }}>
         {children}
       </div>
     </main>
@@ -86,20 +76,22 @@ export default function Phone() {
           maxLength={12}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          style={{ font: "inherit", padding: "0.75rem", borderRadius: 12, border: 0, textAlign: "center" }}
+          style={{ font: "inherit", padding: "0.6rem", border: "5px solid var(--ink)", borderRadius: 0, background: "var(--paper)", color: "var(--ink)", textAlign: "center" }}
         />
         {name.trim() ? "Pick your party" : "Type your name first"}
         {PARTIES.map((p) => {
           const n = online.filter((x) => x.party === p).length;
           return (
-            <button key={p} style={{ ...big, borderRadius: 16, background: COLORS[p] }}
+            <button
+              key={p}
+              style={{ ...big, boxShadow: "5px 5px 0 #000", background: COLORS[p] }}
               disabled={!name.trim()}
               onClick={() => {
                 sessionStorage.setItem("name", name.trim());
                 send({ type: "join", id, party: p, name });
               }}
             >
-              {p.toUpperCase()}
+              {p}
               <div style={small}>{n === 1 ? "1 player" : `${n} players`}</div>
             </button>
           );
@@ -108,15 +100,15 @@ export default function Phone() {
     );
 
   const { party } = me;
-  const other: Party = party === "orange" ? "purple" : "orange";
+  const other: Party = party === "orange" ? "blue" : "orange";
 
   if (state.phase === "lobby")
     return (
       <Frame party={party}>
-        <b>You are in!</b>
+        <b className="silk">You are in!</b>
         <div>Look at the big screen. The round starts soon.</div>
-        <div style={small}>
-          Tap {party.toUpperCase()} to clap when your politician speaks, {other.toUpperCase()} to boo the other one. Hands off during the moderator.
+        <div className="panel" style={{ fontSize: "1.5rem", padding: "0.8rem" }}>
+          Tap {party.toUpperCase()} to clap when your candidate speaks, {other.toUpperCase()} to boo the other one. Hands off during the moderator.
         </div>
       </Frame>
     );
@@ -125,7 +117,9 @@ export default function Phone() {
     return (
       <Frame party={party}>
         <div>Get ready, eyes on the big screen!</div>
-        <b style={{ fontSize: "8rem", lineHeight: 1 }}>{state.countdown}</b>
+        <b key={state.countdown} className="silk punch" style={{ fontSize: "9rem", lineHeight: 1 }}>
+          {state.countdown}
+        </b>
       </Frame>
     );
 
@@ -133,8 +127,10 @@ export default function Phone() {
     const w = state.winner;
     return (
       <Frame party={party}>
-        <b style={{ fontSize: "3rem", color: w ? COLORS[w] : "#fff" }}>{w === null ? "Draw!" : w === party ? "You won!" : "You lost!"}</b>
-        <div>
+        <b className="silk" style={{ fontSize: "2.6rem", color: w ? COLORS[w] : "var(--cream)" }}>
+          {w === null ? "Draw!" : w === party ? "You won!" : "You lost!"}
+        </b>
+        <div className="panel" style={{ padding: "0.8rem" }}>
           {me.name}: <b>{me.right}</b> good taps{me.wrong > 0 && `, ${me.wrong} wrong`}
         </div>
         {me.ready ? (
@@ -142,7 +138,7 @@ export default function Phone() {
             Waiting for the others… ({online.filter((p) => p.ready).length}/{online.length} ready)
           </div>
         ) : (
-          <button style={{ ...big, flex: "none", padding: "2rem", borderRadius: 16, fontSize: "2rem", background: COLORS[party] }} disabled={!armed} onClick={() => send({ type: "vote", id })}>
+          <button style={{ ...big, flex: "none", padding: "1.6rem", fontSize: "2rem", boxShadow: "5px 5px 0 #000", background: "var(--gold)" }} disabled={!armed} onClick={() => send({ type: "vote", id })}>
             Play again
           </button>
         )}
@@ -150,7 +146,7 @@ export default function Phone() {
     );
   }
 
-  // A wrong reaction flashes both buttons red and buzzes, so you notice without looking down.
+  // A wrong reaction turns the frame and both buttons red and buzzes, so you notice without looking down.
   const react = async (type: "clap" | "boo", e: PointerEvent<HTMLButtonElement>) => {
     ripple(e);
     const r = await (await send({ type, id })).json();
@@ -164,13 +160,13 @@ export default function Phone() {
   // Each button has the colour of the party it applies to: press the colour the big screen shows.
   // Only the first finger on the screen counts (isPrimary); the server also drops taps faster than one finger can make.
   return (
-    <Frame party={party} row>
-      <button style={{ ...big, background: wrong ? "#d00" : COLORS[party] }} onPointerDown={(e) => e.isPrimary && react("clap", e)}>
-        CLAP
+    <Frame party={party} row alarm={wrong}>
+      <button style={{ ...big, background: wrong ? "var(--error)" : COLORS[party] }} onPointerDown={(e) => e.isPrimary && react("clap", e)}>
+        Clap
         <div style={small}>when {party} speaks</div>
       </button>
-      <button style={{ ...big, background: wrong ? "#d00" : COLORS[other] }} onPointerDown={(e) => e.isPrimary && react("boo", e)}>
-        BOO
+      <button style={{ ...big, background: wrong ? "var(--error)" : COLORS[other] }} onPointerDown={(e) => e.isPrimary && react("boo", e)}>
+        Boo
         <div style={small}>when {other} speaks</div>
       </button>
     </Frame>

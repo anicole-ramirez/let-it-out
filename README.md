@@ -6,6 +6,13 @@ Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 - `/screen` projector: mode choice, QR code to join, countdown, debate stage, percentage bar. Plays the sound effects (`lib/sound.ts`).
 - Phone → `POST /api/action` → in-memory state (`lib/game.ts`) → SSE `GET /api/events` → screen and phones.
 
+## Look
+
+Retro pixel-art TV debate, after the design handoff in `pitch/letitout-design-handoff/` (inspiration, not followed 1:1).
+
+- Tokens, fonts and shared styles: `app/globals.css`; fonts in `public/fonts/`.
+- Characters: `lib/PixelSprite.tsx` draws the pixel maps in `lib/sprites.json`, recoloured per party.
+
 ## Rules
 
 - The camera switches between both politicians and the moderator.

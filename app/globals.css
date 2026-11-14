@@ -1,25 +1,87 @@
+/* Look: gritty retro pixel art, a TV studio on an old CRT (see pitch/letitout-design-handoff). */
+@font-face {
+  font-family: "Silkscreen";
+  font-weight: 400;
+  src: url("/fonts/Silkscreen-Regular.ttf");
+}
+@font-face {
+  font-family: "Silkscreen";
+  font-weight: 700;
+  src: url("/fonts/Silkscreen-Bold.ttf");
+}
+@font-face {
+  font-family: "VT323";
+  src: url("/fonts/VT323-Regular.ttf");
+}
+@font-face {
+  font-family: "UnifrakturMaguntia";
+  src: url("/fonts/UnifrakturMaguntia-Book.ttf");
+}
+@font-face {
+  font-family: "Old Standard TT";
+  font-weight: 400;
+  src: url("/fonts/OldStandard-Regular.ttf");
+}
+@font-face {
+  font-family: "Old Standard TT";
+  font-weight: 700;
+  src: url("/fonts/OldStandard-Bold.ttf");
+}
+@font-face {
+  font-family: "Old Standard TT";
+  font-style: italic;
+  src: url("/fonts/OldStandard-Italic.ttf");
+}
+
+:root {
+  --void: #17130f;
+  --wall: #2b2420;
+  --floor: #4a4038;
+  --ink: #1e1a16;
+  --paper: #d9d2b6;
+  --cream: #e8e0c8;
+  --gold: #c9a43a;
+  --brick: #a8443a;
+  --error: #d9473a;
+  --orange: #c8693a;
+  --blue: #3a8cb0;
+  --grain: radial-gradient(#00000040 1px, transparent 1px) 0 0 / 4px 4px;
+}
+
 html,
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  background: var(--void);
+  color: var(--cream);
+  font-family: "VT323", monospace;
   overscroll-behavior: none;
 }
 
+/* Headings, buttons, prompts, numbers. */
+.silk,
 button {
-  font: inherit;
-  border: 0;
-  border-radius: 12px;
+  font-family: "Silkscreen", monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+button {
+  font-size: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 5px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 5px 5px 0 #000;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   user-select: none;
-  transition: transform 0.05s, filter 0.05s;
 }
 
 /* Every tap gives visible feedback. */
 button:active {
-  transform: scale(0.97);
-  filter: brightness(0.8);
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0 #000;
 }
 
 button:disabled {
@@ -27,31 +89,32 @@ button:disabled {
   cursor: default;
 }
 
+.panel {
+  background: var(--grain), var(--paper);
+  color: var(--ink);
+  border: 5px solid var(--ink);
+  box-shadow: 8px 8px 0 #000;
+}
+
+/* CRT glass over everything inside the TV: scanlines and a vignette. */
+.crt {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, #00000026 0 2px, transparent 2px 4px),
+    radial-gradient(ellipse at center, transparent 60%, #00000080 100%);
+}
+
 /* --- Motion --- */
 
-/* The speaker bobs, waves an arm and moves their mouth. */
+/* The speaker nods while talking. */
 .bob {
-  animation: bob 0.5s ease-in-out infinite alternate;
+  animation: bob 0.36s steps(2) infinite;
 }
 @keyframes bob {
   to {
-    transform: translateY(-3%);
-  }
-}
-.wave {
-  animation: wave 0.35s ease-in-out infinite alternate;
-}
-@keyframes wave {
-  to {
-    transform: rotate(-80deg);
-  }
-}
-.mouth {
-  animation: mouth 0.18s ease-in-out infinite alternate;
-}
-@keyframes mouth {
-  to {
-    transform: scaleY(0.2);
+    transform: translateY(-2%);
   }
 }
 
@@ -73,7 +136,7 @@ button:disabled {
   }
 }
 
-/* Countdown numbers punch in. */
+/* Countdown numbers and new prompts punch in. */
 .punch {
   animation: punch 0.9s ease-out both;
 }
@@ -91,16 +154,16 @@ button:disabled {
     opacity: 0.6;
   }
 }
-
-/* Winners jump; confetti falls. */
-.jump {
-  animation: jump 0.35s ease-out infinite alternate;
+.pop-in {
+  animation: pop-in 0.2s steps(3) both;
 }
-@keyframes jump {
-  to {
-    transform: translateY(-35%);
+@keyframes pop-in {
+  from {
+    transform: scale(1.4);
   }
 }
+
+/* Confetti falls for the winner. */
 .confetti {
   position: absolute;
   top: -5%;
@@ -120,8 +183,7 @@ button:disabled {
   width: 60px;
   height: 60px;
   margin: -30px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(232, 224, 200, 0.55);
   pointer-events: none;
   animation: ripple 0.4s ease-out forwards;
 }

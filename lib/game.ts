@@ -1,7 +1,7 @@
 // In-memory game state, shared by all route handlers in the single Node process.
-export type Party = "orange" | "purple";
+export type Party = "orange" | "blue";
 export type Speaker = Party | "moderator";
-export const PARTIES: Party[] = ["orange", "purple"];
+export const PARTIES: Party[] = ["orange", "blue"];
 const SPEAKERS: Speaker[] = [...PARTIES, "moderator"];
 export const ROUND_SECONDS = 30;
 const COUNTDOWN_SECONDS = 3;
@@ -20,7 +20,7 @@ export type Player = {
 export type State = {
   phase: "lobby" | "countdown" | "playing" | "ended";
   players: Record<string, Player>;
-  rope: number; // tug of war: -goal = orange wins, +goal = purple wins
+  rope: number; // tug of war: -goal = orange wins, +goal = blue wins
   goal: number;
   weight: Record<Party, number>; // rope steps per tap; >1 for the smaller team
   speaker: Speaker | null; // who the camera is on
@@ -46,7 +46,7 @@ const lobby = (): State => ({
   players: {},
   rope: 0,
   goal: GOAL_PER_PLAYER,
-  weight: { orange: 1, purple: 1 },
+  weight: { orange: 1, blue: 1 },
   speaker: null,
   countdown: 0,
   timeLeft: ROUND_SECONDS,
@@ -56,8 +56,8 @@ const lobby = (): State => ({
 });
 
 // globalThis survives dev hot reloads and is shared across route bundles.
-const g = globalThis as unknown as { __tug6?: Store };
-const store: Store = (g.__tug6 ??= {
+const g = globalThis as unknown as { __tug7?: Store };
+const store: Store = (g.__tug7 ??= {
   state: lobby(),
   listeners: new Set(),
   conns: {},
@@ -109,7 +109,7 @@ function end() {
   clearInterval(store.botTimer);
   s.phase = "ended";
   s.speaker = null;
-  s.winner = s.rope === 0 ? null : s.rope < 0 ? "orange" : "purple";
+  s.winner = s.rope === 0 ? null : s.rope < 0 ? "orange" : "blue";
 }
 
 function begin() {
@@ -163,9 +163,9 @@ function start(seconds = ROUND_SECONDS, countdown = COUNTDOWN_SECONDS) {
   // tap from the smaller team (or the computer) counts for more, so the same
   // effort per person moves the rope equally for both sides.
   const size = (p: Party) => Math.max(1, online().filter((x) => x.party === p).length);
-  const biggest = Math.max(size("orange"), size("purple"));
+  const biggest = Math.max(size("orange"), size("blue"));
   s.goal = GOAL_PER_PLAYER * biggest;
-  s.weight = { orange: biggest / size("orange"), purple: biggest / size("purple") };
+  s.weight = { orange: biggest / size("orange"), blue: biggest / size("blue") };
   if (countdown > 0) s.phase = "countdown";
   else begin();
   store.timer = setInterval(tick, 1000);
@@ -187,7 +187,7 @@ function react(id: string, kind: "clap" | "boo") {
   const now = Date.now();
   if (now - (store.lastTap[id] ?? 0) < MIN_TAP_MS) return {}; // too fast: not counted
   store.lastTap[id] = now;
-  const other: Party = me === "orange" ? "purple" : "orange";
+  const other: Party = me === "orange" ? "blue" : "orange";
   const right =
     (kind === "clap" && s.speaker === me) ||
     (kind === "boo" && s.speaker === other);
