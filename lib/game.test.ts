@@ -7,7 +7,7 @@ import type { Party } from "./game";
 type Game = typeof import("./game");
 let game: Game;
 let n = 0; // cache-busting counter: each test gets a fresh module + store
-let r = 0; // Math.random value: 0 → orange speaks, 0.4 → blue, 0.7 → moderator
+let r = 0; // Math.random value: 0 → orange speaks first, 0.4 → blue, 0.7 → moderator
 
 // Resolve the "@/" alias (used by route handlers), keeping the importer's query
 // so the route shares the test's fresh game module.
@@ -25,7 +25,7 @@ beforeEach(async () => {
   mock.timers.enable({ apis: ["setInterval", "Date"], now: 1_000_000 });
   mock.method(Math, "random", () => r);
   r = 0;
-  delete (globalThis as { __tug7?: unknown }).__tug7;
+  delete (globalThis as { __tug8?: unknown }).__tug8;
   game = await import(`./game.ts?t=${++n}`);
 });
 
@@ -242,8 +242,10 @@ test("single player: bot plays the empty party, not during the moderator", () =>
   r = 0; // next round: orange speaks
   game.dispatch({ type: "vote", id: "a" });
   ms(3000); // countdown; separate tick so the mock runs the bot interval it creates
-  ms(1050);
-  assert.equal(state().rope, 3); // pulls every 350 ms
+  ms(350); // too soon after the spotlight moved (450 ms reaction time): no pull
+  assert.equal(state().rope, 0);
+  ms(350);
+  assert.equal(state().rope, 1); // then one pull every 350 ms
 });
 
 test("multi player: no bot", () => {
@@ -251,4 +253,46 @@ test("multi player: no bot", () => {
   join("a", "orange");
   play();
   assert.equal(state().bot, null);
+});
+
+test("speakers: candidates take turns, exchanges are quick, the moderator never follows himself", () => {
+  join("a", "orange");
+  const seen: [string, number][] = []; // [speaker, ms held]
+  let since = 0;
+  const watch = () => {
+    for (let t = 0; t < 4000; t += 100) {
+      const before = state().speaker!;
+      ms(100);
+      since += 100;
+      if (state().speaker !== before) {
+        seen.push([before, since]);
+        since = 0;
+      }
+    }
+  };
+  play(60);
+  watch(); // r = 0: an exchange, orange first
+  r = 0.7;
+  watch(); // moderator cuts in, then a speech
+  r = 0.5;
+  watch(); // speeches
+  assert.equal(seen[0][0], "orange");
+  assert.ok(seen.slice(0, 3).every(([, held]) => held <= 1200), "exchange turns are short");
+  assert.ok(seen.some(([who]) => who === "moderator"));
+  assert.ok(seen.some(([, held]) => held >= 2500), "speeches are long");
+  for (let i = 1; i < seen.length; i++) assert.notEqual(seen[i][0], seen[i - 1][0], "the speaker always changes");
+});
+
+test("speakers: the pace picks up in the last 10 seconds", () => {
+  join("a", "orange");
+  r = 0.5; // speeches of 3250 ms
+  play(12);
+  const first = state().speaker;
+  ms(3200);
+  assert.equal(state().speaker, first); // still the first speech
+  ms(100);
+  const second = state().speaker;
+  assert.notEqual(second, first);
+  ms(2400); // timeLeft was 9 when the second one started: 3250 * 0.7 = 2275 ms
+  assert.notEqual(state().speaker, second);
 });

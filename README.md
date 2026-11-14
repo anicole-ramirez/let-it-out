@@ -18,7 +18,7 @@ Retro pixel-art TV debate, after the design handoff in `pitch/letitout-design-ha
 
 ## Rules
 
-- The camera switches between both politicians and the moderator.
+- The spotlight moves between both candidates and the moderator: long speeches (2.5-4 s), quick back-and-forth exchanges (0.8-1.2 s a turn) and short moderator interruptions, 30% faster in the last 10 seconds.
 - Clap your own politician or boo the other one to grow your share of the bar. Any other tap, incl. during the moderator, grows the other side.
 - Filling the whole bar wins instantly; otherwise the bigger share after 30 s wins.
 - Uneven teams: the bar takes more taps to fill and taps from the smaller team count for more.

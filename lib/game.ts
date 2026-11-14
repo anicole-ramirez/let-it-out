@@ -2,7 +2,6 @@
 export type Party = "orange" | "blue";
 export type Speaker = Party | "moderator";
 export const PARTIES: Party[] = ["orange", "blue"];
-const SPEAKERS: Speaker[] = [...PARTIES, "moderator"];
 export const ROUND_SECONDS = 30;
 const COUNTDOWN_SECONDS = 3;
 const MIN_TAP_MS = 80; // faster taps are ignored: beyond one finger, so multi-finger tapping gains nothing
@@ -38,7 +37,10 @@ type Store = {
   lastTap: Record<string, number>; // time of each player's last counted tap
   timer?: ReturnType<typeof setInterval>;
   botTimer?: ReturnType<typeof setInterval>;
-  switchIn: number; // seconds until the camera moves
+  beatTimer?: ReturnType<typeof setInterval>;
+  script: Beat[]; // upcoming speakers
+  beatLeft: number; // ms until the spotlight moves
+  switchedAt: number; // when it last moved
 };
 
 const lobby = (): State => ({
@@ -56,13 +58,15 @@ const lobby = (): State => ({
 });
 
 // globalThis survives dev hot reloads and is shared across route bundles.
-const g = globalThis as unknown as { __tug7?: Store };
-const store: Store = (g.__tug7 ??= {
+const g = globalThis as unknown as { __tug8?: Store };
+const store: Store = (g.__tug8 ??= {
   state: lobby(),
   listeners: new Set(),
   conns: {},
   lastTap: {},
-  switchIn: 0,
+  script: [],
+  beatLeft: 0,
+  switchedAt: 0,
 });
 
 export const getState = () => store.state;
@@ -97,16 +101,53 @@ export function connect(id: string) {
   };
 }
 
-function switchSpeaker() {
-  const others = SPEAKERS.filter((x) => x !== store.state.speaker);
-  store.state.speaker = others[Math.floor(Math.random() * others.length)];
-  store.switchIn = 2 + Math.floor(Math.random() * 3); // 2-4 s
+// The debate is scripted a few beats ahead, mixing three patterns:
+// - a speech: one candidate holds the floor for 2.5-4 s
+// - an exchange: 3-5 quick turns back and forth, 0.8-1.2 s each
+// - an interruption: the moderator cuts in for 0.9-1.6 s
+// Everything runs 30% faster in the last 10 seconds.
+type Beat = { who: Speaker; ms: number };
+const span = (min: number, max: number) => min + Math.random() * (max - min);
+
+function plan(): Beat[] {
+  const now = store.state.speaker;
+  const pick = Math.random();
+  if (now !== "moderator" && pick >= 0.66) return [{ who: "moderator", ms: span(900, 1600) }];
+  // After a candidate it is the other one's turn; otherwise either.
+  const who: Party = now === "orange" ? "blue" : now === "blue" ? "orange" : pick < 0.33 ? "orange" : "blue";
+  const reply: Party = who === "orange" ? "blue" : "orange";
+  if (Math.random() < 0.45) {
+    const turns = 3 + Math.floor(Math.random() * 3);
+    return Array.from({ length: turns }, (_, i) => ({ who: i % 2 ? reply : who, ms: span(800, 1200) }));
+  }
+  return [{ who, ms: span(2500, 4000) }];
+}
+
+function nextBeat() {
+  const s = store.state;
+  if (!store.script.length) store.script = plan();
+  const beat = store.script.shift()!;
+  s.speaker = beat.who;
+  store.beatLeft = beat.ms * (s.timeLeft <= 10 ? 0.7 : 1);
+  store.switchedAt = Date.now();
+}
+
+const BEAT_MS = 100;
+function beatTick() {
+  if ((store.beatLeft -= BEAT_MS) > 0) return;
+  nextBeat();
+  emit();
+}
+
+function stopTimers() {
+  clearInterval(store.timer);
+  clearInterval(store.botTimer);
+  clearInterval(store.beatTimer);
 }
 
 function end() {
   const s = store.state;
-  clearInterval(store.timer);
-  clearInterval(store.botTimer);
+  stopTimers();
   s.phase = "ended";
   s.speaker = null;
   s.winner = s.rope === 0 ? null : s.rope < 0 ? "orange" : "blue";
@@ -115,7 +156,9 @@ function end() {
 function begin() {
   const s = store.state;
   s.phase = "playing";
-  switchSpeaker();
+  store.script = [];
+  nextBeat();
+  store.beatTimer = setInterval(beatTick, BEAT_MS);
   if (s.bot) store.botTimer = setInterval(botPull, 350);
 }
 
@@ -124,7 +167,6 @@ function tick() {
   if (s.phase === "countdown") {
     if (--s.countdown <= 0) begin();
   } else if (--s.timeLeft <= 0) end();
-  else if (--store.switchIn <= 0) switchSpeaker();
   emit();
 }
 
@@ -138,18 +180,18 @@ function pull(party: Party, steps: number) {
   }
 }
 
-// The bot never makes mistakes but is slower than a fast human.
+// The bot never makes mistakes but is slower than a fast human, and needs a moment to
+// react when the spotlight moves.
 function botPull() {
   const s = store.state;
-  if (!s.bot || s.speaker === "moderator") return;
+  if (!s.bot || s.speaker === "moderator" || Date.now() - store.switchedAt < 450) return;
   pull(s.bot, s.weight[s.bot]);
   emit();
 }
 
 function start(seconds = ROUND_SECONDS, countdown = COUNTDOWN_SECONDS) {
   const s = store.state;
-  clearInterval(store.timer);
-  clearInterval(store.botTimer);
+  stopTimers();
   s.rope = 0;
   s.winner = null;
   s.speaker = null;
@@ -225,8 +267,7 @@ export function dispatch(a: Action): { right?: boolean } | null {
   } else if (a?.type === "mode" && s.phase === "lobby" && ["single", "multi"].includes(a.mode)) {
     s.mode = a.mode;
   } else if (a?.type === "reset") {
-    clearInterval(store.timer);
-    clearInterval(store.botTimer);
+    stopTimers();
     store.state = lobby();
   } else {
     result = null;
