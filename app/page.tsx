@@ -83,14 +83,14 @@ export default function Phone() {
   };
 
   return (
-    <main style={{ ...full, background: wrong ? "#d00" : COLORS[party] }}>
+    <main style={{ ...full, flexDirection: "row", background: wrong ? "#d00" : COLORS[party] }}>
       <button style={{ ...big, background: "transparent" }} onPointerDown={() => react("clap")}>
-        👏 CLAP
+        CLAP
         <div style={{ fontSize: "1rem", fontWeight: 400 }}>when {party} speaks</div>
       </button>
       <button style={{ ...big, background: "rgba(0,0,0,0.45)" }} onPointerDown={() => react("boo")}>
-        👎 BOO
-        <div style={{ fontSize: "1rem", fontWeight: 400 }}>when the other party speaks</div>
+        BOO
+        <div style={{ fontSize: "1rem", fontWeight: 400 }}>when {party === "orange" ? "purple" : "orange"} speaks</div>
       </button>
     </main>
   );
