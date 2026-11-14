@@ -3,7 +3,7 @@
 Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 
 - `/` phone: join a party, then CLAP or BOO; vote "Play again" after a round.
-- `/screen` projector: mode choice, QR code to join, countdown, debate stage, percentage bar.
+- `/screen` projector: mode choice, QR code to join, countdown, debate stage, percentage bar. Plays the sound effects (`lib/sound.ts`).
 - Phone → `POST /api/action` → in-memory state (`lib/game.ts`) → SSE `GET /api/events` → screen and phones.
 
 ## Rules

@@ -2,6 +2,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { COLORS, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party, type Speaker, type State } from "@/lib/game";
+import { useSounds } from "@/lib/sound";
 
 // Projector view: tug-of-war bar, debate stage with stick figures, audience.
 const FIG = { ...COLORS, moderator: "#444" } as const;
@@ -164,6 +165,7 @@ function Stage({ state }: { state: State }) {
 
 export default function Screen() {
   const state = useGameState();
+  useSounds(state);
   if (!state) return <main style={{ padding: "2rem", fontSize: "2rem" }}>Connecting…</main>;
 
   const players = Object.values(state.players);
