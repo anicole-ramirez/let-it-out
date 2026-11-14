@@ -11,6 +11,7 @@ Hackathon party game. Design: [DESIGN.md](DESIGN.md).
 Retro pixel-art TV debate, after the design handoff in `pitch/letitout-design-handoff/` (inspiration, not followed 1:1).
 
 - Tokens, fonts and shared styles: `app/globals.css`; fonts in `public/fonts/`.
+- Intro: `public/intro.html` (copy of `pitch/Archivo/intro.html`) plays in a frame over the projector start screen until any key or tap.
 - Characters: `lib/PixelSprite.tsx` draws the pixel maps in `lib/sprites.json`, recoloured per party.
 
 ## Rules

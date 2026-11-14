@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { COLORS, GOLD, SHADE, send, useGameState } from "@/lib/client";
 import { PARTIES, type Party, type Speaker, type State } from "@/lib/game";
 import { HAIR, PixelSprite, SLOTS, type SpriteName } from "@/lib/PixelSprite";
@@ -312,9 +312,36 @@ function Newspaper({ state }: { state: State }) {
   );
 }
 
+// The designer's intro animation (public/intro.html, copied from pitch/Archivo) plays in a
+// frame over the start screen until any key or tap ("PRESS ANY KEY TO TUNE IN").
+function Intro({ onDone }: { onDone: () => void }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    const frame = ref.current;
+    if (!frame) return;
+    const hook = () => {
+      const doc = frame.contentDocument;
+      if (!doc?.head) return;
+      doc.head.insertAdjacentHTML("beforeend", "<style>#replay{display:none}</style>");
+      doc.addEventListener("keydown", onDone, true);
+      doc.addEventListener("pointerdown", onDone);
+    };
+    hook();
+    frame.addEventListener("load", hook);
+    window.addEventListener("keydown", onDone);
+    return () => {
+      frame.removeEventListener("load", hook);
+      window.removeEventListener("keydown", onDone);
+    };
+  }, [onDone]);
+  return <iframe ref={ref} src="/intro.html" title="Intro" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", border: 0, zIndex: 10 }} />;
+}
+
 export default function Screen() {
   const state = useGameState();
   useSounds(state);
+  const [intro, setIntro] = useState(true);
+  const endIntro = useCallback(() => setIntro(false), []);
   if (!state) return <main style={{ padding: "2rem", fontSize: "2rem" }}>Connecting…</main>;
 
   const count = Object.values(state.players).filter((p) => p.online).length;
@@ -347,6 +374,7 @@ export default function Screen() {
         <div className="crt" />
       </div>
       {state.phase === "ended" && state.winner && <Confetti color={COLORS[state.winner]} />}
+      {intro && state.phase === "lobby" && !state.mode && <Intro onDone={endIntro} />}
     </main>
   );
 }
