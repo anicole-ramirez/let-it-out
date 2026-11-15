@@ -14,7 +14,7 @@ import THROWABLES from "@/lib/throwables.json";
 const INK = "var(--ink)";
 const silk: CSSProperties = { fontFamily: "Silkscreen, monospace", fontWeight: 700, textTransform: "uppercase" };
 const center: CSSProperties = { flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "calc(2 * var(--u))", padding: "calc(3 * var(--u)) 3vw" };
-const btn: CSSProperties = { fontSize: "max(calc(3 * var(--u)), 12px)", padding: "calc(1 * var(--u)) 2vw" };
+const btn: CSSProperties = { fontSize: "max(calc(3 * var(--u)), calc(12 * var(--px)))", padding: "calc(1 * var(--u)) 2vw" };
 const other = (p: Party): Party => (p === "orange" ? "blue" : "orange");
 const share = (state: State) => {
   const orange = Math.round(50 - (state.rope / state.goal) * 50);
@@ -61,18 +61,18 @@ function Bar({ state }: { state: State }) {
   // The party names sit at the ends of the bar, in their colours: no legend to decode.
   const me = state.mode === "single" ? state.players[getId()]?.party : undefined;
   const label = (p: Party) => (
-    <span style={{ ...silk, flex: "none", display: "flex", flexDirection: "column", alignItems: "center", fontSize: "max(calc(2.4 * var(--u)), 12px)", lineHeight: 1.1, color: COLORS[p] }}>
+    <span style={{ ...silk, flex: "none", display: "flex", flexDirection: "column", alignItems: "center", fontSize: "max(calc(2.4 * var(--u)), calc(12 * var(--px)))", lineHeight: 1.1, color: COLORS[p] }}>
       {p}
-      {me === p && <span style={{ fontSize: "max(calc(1.7 * var(--u)), 12px)", padding: "0 0.5em", background: "var(--cream)", color: INK }}>You</span>}
+      {me === p && <span style={{ fontSize: "max(calc(1.7 * var(--u)), calc(12 * var(--px)))", padding: "0 0.5em", background: "var(--cream)", color: INK }}>You</span>}
     </span>
   );
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "1.2vw" }}>
+    <div className="hudbar" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "1.2vw" }}>
       {label("orange")}
       <Pop on={state.rope} frames={BUMP} ms={120} style={{ flex: 1 }}>
         <div
           className={playing && leader ? "glow" : undefined}
-          style={{ ...silk, position: "relative", height: "calc(5 * var(--u))", background: COLORS.blue, border: `5px solid ${INK}`, outline: "4px solid #6B5A44", color: "var(--cream)", fontSize: "max(calc(2.6 * var(--u)), 12px)", ["--glow" as string]: leader ? COLORS[leader] : "transparent" }}
+          style={{ ...silk, position: "relative", height: "calc(5 * var(--u))", background: COLORS.blue, border: `5px solid ${INK}`, outline: "4px solid #6B5A44", color: "var(--cream)", fontSize: "max(calc(2.6 * var(--u)), calc(12 * var(--px)))", ["--glow" as string]: leader ? COLORS[leader] : "transparent" }}
         >
           <div style={{ position: "absolute", inset: 0, width: `${orange}%`, background: COLORS.orange, transition: "width 0.15s" }} />
           <div className={playing ? "wobble" : undefined} style={{ position: "absolute", left: `${orange}%`, top: 0, bottom: 0, width: 6, marginLeft: -3, background: "var(--cream)", transition: "left 0.15s" }} />
@@ -89,12 +89,12 @@ function Roster({ state, scores }: { state: State; scores?: boolean }) {
   const lists = PARTIES.map((p) => Object.values(state.players).filter((x) => x.party === p).sort((a, b) => b.right - a.right));
   const most = Math.max(1, ...lists.map((l) => l.length));
   const cols = Math.ceil(most / (scores ? 8 : 6));
-  const size = scores ? [3.6, 2.8, 2.3, 1.9][Math.min(cols, 4) - 1] : [3.2, 2.6, 2.2, 1.9][Math.min(cols, 4) - 1];
+  const size = scores ? [2.9, 2.6, 2.3, 1.9][Math.min(cols, 4) - 1] : [3.2, 2.6, 2.2, 1.9][Math.min(cols, 4) - 1];
   return (
     <div style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", gap: "2vw", overflow: "hidden", fontSize: `max(calc(${size} * var(--u)), 13px)`, lineHeight: 1.15 }}>
       {PARTIES.map((p, i) => (
         <div key={p} style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ ...silk, fontSize: "max(calc(2.2 * var(--u)), 12px)", color: SHADE[p], borderBottom: `3px solid ${INK}` }}>
+          <div style={{ ...silk, fontSize: "max(calc(2.2 * var(--u)), calc(12 * var(--px)))", color: SHADE[p], borderBottom: `3px solid ${INK}` }}>
             {p} camp ({lists[i].length}){state.weight[p] > 1 && scores && ` · taps x${+state.weight[p].toFixed(1)}`}
           </div>
           {state.bot === p && <div>The computer</div>}
@@ -135,7 +135,7 @@ function Lobby({ state, count }: { state: State; count: number }) {
   if (!state.mode)
     return (
       <div style={center}>
-        <div className="panel" style={{ ...center, flex: "none", fontSize: "max(calc(3.5 * var(--u)), 12px)" }}>
+        <div className="panel" style={{ ...center, flex: "none", fontSize: "max(calc(3.5 * var(--u)), calc(12 * var(--px)))" }}>
           <b style={{ ...silk, fontSize: "calc(5 * var(--u))" }}>How do you want to play?</b>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "2vw" }}>
             <button style={{ ...btn, padding: "calc(3 * var(--u)) 3vw" }} onClick={() => send({ type: "mode", mode: "single" })}>
@@ -163,8 +163,8 @@ function Solo() {
   };
   return (
     <div style={center}>
-      <div className="panel" style={{ ...center, flex: "none", fontSize: "max(calc(3.6 * var(--u)), 12px)" }}>
-        <HowTo size="max(calc(4.4 * var(--u)), 18px)" />
+      <div className="panel" style={{ ...center, flex: "none", fontSize: "max(calc(3.6 * var(--u)), calc(12 * var(--px)))" }}>
+        <HowTo size="max(calc(4.4 * var(--u)), calc(18 * var(--px)))" />
         {/* The name is optional: nothing should stand between the player and the first round. */}
         <input
           autoFocus
@@ -199,7 +199,7 @@ function Join({ state, count }: { state: State; count: number }) {
   }, []);
   return (
     <div style={center}>
-      <div className="panel" style={{ width: "92%", height: "100%", boxSizing: "border-box", padding: "calc(2 * var(--u)) 2vw", display: "flex", flexWrap: "wrap", overflowY: "auto", gap: "2.5vw", fontSize: "max(calc(3.6 * var(--u)), 12px)", lineHeight: 1.1 }}>
+      <div className="panel" style={{ width: "92%", height: "100%", boxSizing: "border-box", padding: "calc(2 * var(--u)) 2vw", display: "flex", flexWrap: "wrap", overflowY: "auto", gap: "2.5vw", fontSize: "max(calc(3.6 * var(--u)), calc(12 * var(--px)))", lineHeight: 1.1 }}>
         {join && (
           // eslint-disable-next-line @next/next/no-img-element
           <img alt="Join QR code" style={{ alignSelf: "center", height: "min(100%, 60vw)", maxWidth: "36%", aspectRatio: "1", minHeight: 0, minWidth: 0, border: `5px solid ${INK}`, imageRendering: "pixelated" }} src={`data:image/svg+xml;utf8,${encodeURIComponent(join.qr)}`} />
@@ -208,7 +208,7 @@ function Join({ state, count }: { state: State; count: number }) {
           <div>
             Scan to join, or open <b>{join?.url}</b>
           </div>
-          <HowTo size="max(calc(4 * var(--u)), 17px)" />
+          <HowTo size="max(calc(4 * var(--u)), calc(17 * var(--px)))" />
           <Roster state={state} />
           <div style={{ display: "flex", gap: "1vw" }}>
             <button style={{ ...btn, background: GOLD }} disabled={count === 0} onClick={() => send({ type: "start" })}>
@@ -226,7 +226,7 @@ function Join({ state, count }: { state: State; count: number }) {
 
 function Countdown({ state }: { state: State }) {
   return (
-    <div style={{ ...center, background: "var(--void)", fontSize: "max(calc(4 * var(--u)), 12px)" }}>
+    <div style={{ ...center, background: "var(--void)", fontSize: "max(calc(4 * var(--u)), calc(12 * var(--px)))" }}>
       <b style={{ ...silk, color: GOLD, textAlign: "center" }}>
         Round {state.level} of {LEVELS.length}: {LEVELS[state.level - 1].name}
       </b>
@@ -384,7 +384,7 @@ function Prompt({ state, live }: { state: State; live: Speaker }) {
       <div style={{ display: "flex", alignItems: "baseline", gap: "6vw" }}>
         {PARTIES.map((p) => (
           <span key={p} style={{ display: "flex", alignItems: "baseline", gap: "1vw" }}>
-            <span style={{ ...silk, fontSize: "max(calc(2.6 * var(--u)), 12px)" }}>{p} team</span>
+            <span style={{ ...silk, fontSize: "max(calc(2.6 * var(--u)), calc(12 * var(--px)))" }}>{p} team</span>
             <b style={word}>{p === live ? "Clap!" : "Boo!"}</b>
           </span>
         ))}
@@ -397,7 +397,7 @@ function Prompt({ state, live }: { state: State; live: Speaker }) {
       <div key={`${live}${oops}`} className="pop-in">
         {big}
       </div>
-      <div style={{ fontSize: "max(calc(3.4 * var(--u)), 16px)", lineHeight: 1, textAlign: "center" }}>
+      <div style={{ fontSize: "max(calc(3.4 * var(--u)), calc(16 * var(--px)))", lineHeight: 1, textAlign: "center" }}>
         <Typed text={hint} />
       </div>
     </div>
@@ -468,12 +468,12 @@ function Stage({ state }: { state: State }) {
         {/* Spotlight: a beam from the rig down to the speaker; it swings with the camera. */}
         <div style={{ position: "absolute", inset: 0, background: "rgba(232, 224, 200, 0.16)", clipPath: `polygon(${at - 3}% 0, ${at + 3}% 0, ${at + 14}% 79%, ${at - 14}% 79%)`, transition: "clip-path 0.3s ease-out", pointerEvents: "none" }} />
         {/* The statement, above whoever says it. */}
-        <div style={{ ["--bw" as string]: "min(94%, max(40%, 280px))", position: "absolute", top: "4%", left: `clamp(calc(var(--bw) / 2 + 2%), ${at}%, calc(98% - var(--bw) / 2))`, transition: "left 0.3s ease-out", width: "var(--bw)", transform: "translateX(-50%)", display: "flex", justifyContent: "center", zIndex: 2 }}>
-          <div key={said.n} className="panel pop-in" style={{ padding: "calc(1 * var(--u)) 1.4vw", fontSize: "max(calc(4.6 * var(--u)), 18px)", lineHeight: 1, textAlign: "center", textTransform: "uppercase", boxShadow: "5px 5px 0 #000" }}>
+        <div style={{ ["--bw" as string]: "min(94%, max(40%, 280px))", position: "absolute", bottom: "calc(24% + min(54%, 30vw) + 3%)", left: `clamp(calc(var(--bw) / 2 + 2%), ${at}%, calc(98% - var(--bw) / 2))`, transition: "left 0.3s ease-out", width: "var(--bw)", transform: "translateX(-50%)", display: "flex", justifyContent: "center", zIndex: 2 }}>
+          <div key={said.n} className="panel pop-in" style={{ padding: "calc(1 * var(--u)) 1.4vw", fontSize: "max(calc(4.6 * var(--u)), calc(18 * var(--px)))", lineHeight: 1, textAlign: "center", textTransform: "uppercase", boxShadow: "5px 5px 0 #000" }}>
             <Typed text={`“${line}”`} />
           </div>
         </div>
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: "24%", height: "min(54%, 42vw)", transform: `translateX(${pan}%)`, transition: "transform 0.3s ease-out" }}>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: "24%", height: "min(54%, 30vw)", transform: `translateX(${pan}%)`, transition: "transform 0.3s ease-out" }}>
           {(["orange", "moderator", "blue"] as Speaker[]).map((who) => {
             const on = live === who;
             const mine = me === who;
@@ -486,7 +486,7 @@ function Stage({ state }: { state: State }) {
                 </div>
                 <Podium who={who} dim={!on} />
                 {/* Who is who: the player's own candidate is always marked. */}
-                <div style={{ ...silk, position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: "0.5em", padding: "0 0.5em", whiteSpace: "nowrap", fontSize: "max(calc(1.9 * var(--u)), 10px)", lineHeight: 1.4, background: mine ? "var(--cream)" : who === "moderator" ? GOLD : COLORS[who], color: INK, outline: mine ? `3px solid ${COLORS[who]}` : undefined, opacity: on || mine ? 1 : 0.55 }}>
+                <div style={{ ...silk, position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: "0.5em", padding: "0 0.5em", whiteSpace: "nowrap", fontSize: "max(calc(1.9 * var(--u)), calc(10 * var(--px)))", lineHeight: 1.4, background: mine ? "var(--cream)" : who === "moderator" ? GOLD : COLORS[who], color: INK, outline: mine ? `3px solid ${COLORS[who]}` : undefined, opacity: on || mine ? 1 : 0.55 }}>
                   {mine ? "You" : state.bot === who ? "CPU" : who}
                 </div>
               </div>
@@ -535,7 +535,7 @@ function Controls({ state }: { state: State }) {
           ref={(el) => {
             refs.current[p] = el;
           }}
-          style={{ ...btn, flex: 1, fontSize: "max(calc(4 * var(--u)), 12px)", background: COLORS[p] }}
+          style={{ ...btn, flex: 1, fontSize: "max(calc(4 * var(--u)), calc(12 * var(--px)))", background: COLORS[p] }}
           onPointerDown={(e) => e.isPrimary && send({ type: p === me ? "clap" : "boo", id })}
         >
           {p === "orange" && "← "}
@@ -572,12 +572,12 @@ function Newspaper({ state }: { state: State }) {
   const multi = state.mode === "multi";
   const me = multi ? undefined : state.players[getId()]?.party;
   const serif = "'Old Standard TT', serif";
-  const small = "max(calc(2.3 * var(--u)), 13px)";
-  const text = "max(calc(2.9 * var(--u)), 15px)";
+  const small = "max(calc(2.3 * var(--u)), calc(13 * var(--px)))";
+  const text = "max(calc(2.9 * var(--u)), calc(15 * var(--px)))";
   const rule = `2px solid ${INK}`;
   const ear: CSSProperties = { flex: "1 1 0", minWidth: 0, fontSize: small, lineHeight: 1.15, fontStyle: "italic" };
-  const kicker: CSSProperties = { fontWeight: 700, fontStyle: "italic", fontSize: "max(calc(3.6 * var(--u)), 17px)", lineHeight: 1.05 };
-  const label: CSSProperties = { ...silk, fontSize: "max(calc(1.9 * var(--u)), 11px)", padding: "0 0.4em", marginRight: "0.5em", color: "#EAE4CE" };
+  const kicker: CSSProperties = { fontWeight: 700, fontStyle: "italic", fontSize: "max(calc(3.6 * var(--u)), calc(17 * var(--px)))", lineHeight: 1.05 };
+  const label: CSSProperties = { ...silk, fontSize: "max(calc(1.9 * var(--u)), calc(11 * var(--px)))", padding: "0 0.4em", marginRight: "0.5em", color: "#EAE4CE" };
   const champ = state.champion;
   const score = `${Math.max(state.wins.orange, state.wins.blue)} to ${Math.min(state.wins.orange, state.wins.blue)}`;
   const lines = state.final
@@ -594,7 +594,7 @@ function Newspaper({ state }: { state: State }) {
             <br />
             That’s Fit to Print”
           </div>
-          <div style={{ flex: "1 1 auto", fontFamily: "UnifrakturMaguntia, serif", fontSize: "max(calc(7.5 * var(--u)), 30px)", lineHeight: 1, textAlign: "center" }}>The Daily Debate</div>
+          <div style={{ flex: "1 1 auto", fontFamily: "UnifrakturMaguntia, serif", fontSize: "max(calc(7.5 * var(--u)), calc(30 * var(--px)))", lineHeight: 1, textAlign: "center" }}>The Daily Debate</div>
           <div className="ear" style={{ ...ear, flex: "0 1 auto", textAlign: "right" }}>
             <b style={{ fontStyle: "normal" }}>Late Edition</b>
             <br />
@@ -610,7 +610,7 @@ function Newspaper({ state }: { state: State }) {
             Final crowd share: {pct.orange} to {pct.blue}
           </span>
         </div>
-        <h1 style={{ margin: 0, fontSize: "max(calc(5.4 * var(--u)), 22px)", lineHeight: 1.05, fontStyle: "italic", fontWeight: 700, textAlign: "center", textTransform: "uppercase" }}>
+        <h1 style={{ margin: 0, fontSize: "max(min(calc(5.4 * var(--u)), 4.4vw), calc(22 * var(--px)))", lineHeight: 1.05, fontStyle: "italic", fontWeight: 700, textAlign: "center", textTransform: "uppercase" }}>
           {lines.map((l, i) => (
             <div key={i} style={{ color: i === 0 && (state.final ? champ : w) ? SHADE[(state.final ? champ : w)!] : INK }}>
               {l}
@@ -635,7 +635,7 @@ function Newspaper({ state }: { state: State }) {
             {!w && <div style={{ marginTop: "0.5em" }}>Both candidates promised a great deal. The crowd could not agree on any of it.</div>}
           </div>
           <figure style={{ margin: 0 }}>
-            <div style={{ height: "max(calc(21 * var(--u)), 120px)", border: `3px solid ${INK}`, background: "#CFC8AE", filter: "grayscale(1) contrast(1.1)", display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "6%", paddingTop: "4%", overflow: "hidden" }}>
+            <div style={{ height: "max(calc(21 * var(--u)), calc(120 * var(--px)))", border: `3px solid ${INK}`, background: "#CFC8AE", filter: "grayscale(1) contrast(1.1)", display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "6%", paddingTop: "4%", overflow: "hidden" }}>
               {(w ? [w] : PARTIES).map((p) => (
                 <Character key={p} who={p} look={cast[p]} talk={!!w} flip={p === "blue"} style={{ height: "94%" }} />
               ))}
@@ -644,8 +644,8 @@ function Newspaper({ state }: { state: State }) {
               {w ? `The ${w} candidate early this morning, after a tense night of clapping and booing.` : "The candidates, still arguing after the studio lights went out."}
             </figcaption>
           </figure>
-          <div style={{ display: "flex", flexDirection: "column", minHeight: "max(calc(18 * var(--u)), 110px)" }}>
-            <div style={{ ...silk, fontSize: "max(calc(2.2 * var(--u)), 12px)", textAlign: "center", borderBottom: `1px solid ${INK}`, marginBottom: "0.4em" }}>
+          <div style={{ display: "flex", flexDirection: "column", minHeight: "max(calc(18 * var(--u)), calc(110 * var(--px)))" }}>
+            <div style={{ ...silk, fontSize: "max(calc(2.2 * var(--u)), calc(12 * var(--px)))", textAlign: "center", borderBottom: `1px solid ${INK}`, marginBottom: "0.4em" }}>
               {!me ? "The tally" : state.final ? (champ === me ? "You won the election" : champ ? "You lost the election" : "A tie") : w === me ? "You won this round" : w ? "You lost this round" : "A draw"}
             </div>
             <Roster state={state} scores />
@@ -733,12 +733,12 @@ export default function Screen() {
   return (
     <main style={{ height: "100dvh", boxSizing: "border-box", padding: "calc(1.5 * var(--u))", background: "var(--void)" }}>
       {/* The TV: bezel, HUD strip, then the current screen, all under the CRT glass. */}
-      <div className={boot === "leaving" ? "crt-on" : undefined} style={{ position: "relative", height: "100%", boxSizing: "border-box", border: "22px solid #3A332C", borderRadius: 30, overflow: "hidden", background: "var(--wall)", display: "flex", flexDirection: "column" }}>
+      <div className={boot === "leaving" ? "crt-on" : undefined} style={{ position: "relative", height: "100%", boxSizing: "border-box", border: "min(22px, 3vmin) solid #3A332C", borderRadius: "min(30px, 4vmin)", overflow: "hidden", background: "var(--wall)", display: "flex", flexDirection: "column" }}>
         {/* HUD: during a round only the bar and the timer; otherwise the title. */}
-        <div style={{ ...silk, background: INK, padding: "calc(1.4 * var(--u)) 2vw", minHeight: "calc(7 * var(--u))", display: "flex", alignItems: "center", gap: "1.5vw", fontSize: "max(calc(2.4 * var(--u)), 12px)", color: GOLD }}>
+        <div className="hud" style={{ ...silk, background: INK, padding: "calc(1.4 * var(--u)) 2vw", minHeight: "calc(7 * var(--u))", display: "flex", alignItems: "center", gap: "1.5vw", fontSize: "max(calc(2.4 * var(--u)), calc(12 * var(--px)))", color: GOLD }}>
           {inRound ? (
             <>
-              <span style={{ flex: "none", textAlign: "center", fontSize: "max(calc(1.9 * var(--u)), 10px)", lineHeight: 1.2 }}>
+              <span style={{ flex: "none", textAlign: "center", fontSize: "max(calc(1.9 * var(--u)), calc(10 * var(--px)))", lineHeight: 1.2 }}>
                 Round
                 <br />
                 <b style={{ fontSize: "1.5em", color: "var(--cream)" }}>
@@ -747,7 +747,7 @@ export default function Screen() {
               </span>
               <Bar state={state} />
               {/* Timer turns red for the last 10 seconds. */}
-              <b style={{ flex: "none", fontSize: "max(calc(4.6 * var(--u)), 12px)", lineHeight: 1, padding: "calc(0.4 * var(--u)) 1.2vw", border: `5px solid ${hurry ? "var(--error)" : "var(--cream)"}`, color: hurry ? "var(--error)" : "var(--cream)" }}>0:{String(state.timeLeft).padStart(2, "0")}</b>
+              <b style={{ flex: "none", fontSize: "max(calc(4.6 * var(--u)), calc(12 * var(--px)))", lineHeight: 1, padding: "calc(0.4 * var(--u)) 1.2vw", border: `5px solid ${hurry ? "var(--error)" : "var(--cream)"}`, color: hurry ? "var(--error)" : "var(--cream)" }}>0:{String(state.timeLeft).padStart(2, "0")}</b>
             </>
           ) : (
             <>

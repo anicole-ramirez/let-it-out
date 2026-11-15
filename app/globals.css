@@ -45,8 +45,11 @@
   --error: #d9473a;
   --orange: #c8693a;
   --blue: #3a8cb0;
-  /* Responsive unit for the big screen: 1vh on a wide screen, a share of the width on a narrow one. */
-  --u: max(min(1vh, 0.62vw), 4.4px);
+  /* Responsive unit for the big screen: 1% of the height on a wide screen, a share of the width on an
+     upright one, so text and layout grow and shrink together. --px scales the minimum text sizes:
+     smaller on a phone held sideways, where height is scarce. */
+  --px: 1px;
+  --u: max(min(1vh, 1.1vw), calc(4.4 * var(--px)));
   /* The dotted texture is switched off: text on flat colour is easier to read. */
   --grain: none;
 }
@@ -230,5 +233,24 @@ button:disabled {
 @media (max-width: 600px) {
   .ear {
     display: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --px: 0.8px;
+  }
+}
+
+/* Narrow screens: the score bar gets a row of its own under the round and the timer. */
+@media (max-width: 600px) {
+  .hud {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    row-gap: 4px;
+  }
+  .hudbar {
+    order: 3;
+    flex: 1 1 100% !important;
   }
 }
