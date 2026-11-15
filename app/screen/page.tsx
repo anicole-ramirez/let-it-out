@@ -230,7 +230,9 @@ function Countdown({ state }: { state: State }) {
       <b style={{ ...silk, color: GOLD, textAlign: "center" }}>
         Round {state.level} of {LEVELS.length}: {LEVELS[state.level - 1].name}
       </b>
-      <div style={{ textAlign: "center" }}>{LEVELS[state.level - 1].hint}</div>
+      <div style={{ textAlign: "center" }}>
+        <Typed text={LEVELS[state.level - 1].hint} />
+      </div>
       <div style={{ textAlign: "center" }}>{state.mode === "multi" ? "Watch this screen, not your phone." : "Use the ← → keys or tap the buttons."}</div>
       <b key={state.countdown} className="punch" style={{ ...silk, fontSize: "calc(28 * var(--u))", lineHeight: 1 }}>
         {state.countdown}
@@ -241,6 +243,64 @@ function Countdown({ state }: { state: State }) {
 
 // Where each character stands (% from the left); the spotlight follows the speaker.
 const SPOT: Record<Speaker, number> = { orange: 22, moderator: 50, blue: 78 };
+
+// Types its text out, two letters at a time. The untyped rest is already there, invisible,
+// so nothing moves while it types; screen readers get the whole sentence at once.
+function Typed({ text }: { text: string }) {
+  const [shown, setShown] = useState({ text, n: 0 });
+  if (shown.text !== text) setShown({ text, n: 0 });
+  const n = shown.text === text ? shown.n : 0;
+  useEffect(() => {
+    if (n >= text.length) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const t = setTimeout(() => setShown({ text, n: still ? text.length : n + 2 }), 22);
+    return () => clearTimeout(t);
+  }, [n, text]);
+  return (
+    <span aria-label={text}>
+      <span aria-hidden>{text.slice(0, n)}</span>
+      <span aria-hidden style={{ visibility: "hidden" }}>
+        {text.slice(n)}
+      </span>
+    </span>
+  );
+}
+
+// A lectern with a microphone for each candidate (its badge in the party colour) and a desk
+// for the moderator, drawn in front of the figure.
+function Podium({ who, dim }: { who: Speaker; dim: boolean }) {
+  const K = "#1E1A16";
+  const desk = who === "moderator";
+  return (
+    <svg
+      viewBox={desk ? "0 0 44 14" : "0 -9 24 25"}
+      shapeRendering="crispEdges"
+      aria-hidden
+      style={{ position: "absolute", left: "50%", bottom: "-3%", height: desk ? "34%" : "52%", transform: `translateX(-50%)${who === "blue" ? " scaleX(-1)" : ""}`, filter: dim ? "brightness(0.7) saturate(0.55)" : undefined, transition: "filter 0.15s" }}
+    >
+      {desk ? (
+        <>
+          <rect x="0" y="0" width="44" height="4" fill={K} />
+          <rect x="1" y="1" width="42" height="2" fill="#6B5A44" />
+          <rect x="2" y="4" width="40" height="10" fill={K} />
+          <rect x="3" y="4" width="38" height="9" fill="#3A332C" />
+          <rect x="15" y="6" width="14" height="4" fill={GOLD} />
+        </>
+      ) : (
+        <>
+          <rect x="19" y="-7" width="1" height="8" fill={K} />
+          <rect x="18" y="-9" width="3" height="3" fill={K} />
+          <rect x="1" y="0" width="22" height="4" fill={K} />
+          <rect x="2" y="1" width="20" height="2" fill="#8A6E4E" />
+          <rect x="3" y="4" width="18" height="12" fill={K} />
+          <rect x="4" y="4" width="16" height="11" fill="#5E4A36" />
+          <rect x="9" y="6" width="6" height="6" fill="#E8E0C8" />
+          <rect x="10" y="7" width="4" height="4" fill={COLORS[who as Party]} />
+        </>
+      )}
+    </svg>
+  );
+}
 
 const tag: CSSProperties = { ...silk, display: "block", position: "relative", zIndex: 1, padding: "0 0.2vw", boxShadow: "none", borderWidth: 2, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
@@ -337,7 +397,9 @@ function Prompt({ state, live }: { state: State; live: Speaker }) {
       <div key={`${live}${oops}`} className="pop-in">
         {big}
       </div>
-      <div style={{ fontSize: "max(calc(3.4 * var(--u)), 16px)", lineHeight: 1, textAlign: "center" }}>{hint}</div>
+      <div style={{ fontSize: "max(calc(3.4 * var(--u)), 16px)", lineHeight: 1, textAlign: "center" }}>
+        <Typed text={hint} />
+      </div>
     </div>
   );
 }
@@ -402,13 +464,13 @@ function Stage({ state }: { state: State }) {
   return (
     // Any wrong tap: the studio shakes and a red frame flashes.
     <Pop on={wrongs} frames={QUAKE} ms={300} style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", flexDirection: "column" }}>
-      <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden", background: `var(--grain), ${TINT[live]}`, transition: "background-color 0.2s" }}>
+      <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden", background: TINT[live], transition: "background-color 0.2s" }}>
         {/* Spotlight: a beam from the rig down to the speaker; it swings with the camera. */}
         <div style={{ position: "absolute", inset: 0, background: "rgba(232, 224, 200, 0.16)", clipPath: `polygon(${at - 3}% 0, ${at + 3}% 0, ${at + 14}% 79%, ${at - 14}% 79%)`, transition: "clip-path 0.3s ease-out", pointerEvents: "none" }} />
         {/* The statement, above whoever says it. */}
         <div style={{ ["--bw" as string]: "min(94%, max(40%, 280px))", position: "absolute", top: "4%", left: `clamp(calc(var(--bw) / 2 + 2%), ${at}%, calc(98% - var(--bw) / 2))`, transition: "left 0.3s ease-out", width: "var(--bw)", transform: "translateX(-50%)", display: "flex", justifyContent: "center", zIndex: 2 }}>
           <div key={said.n} className="panel pop-in" style={{ padding: "calc(1 * var(--u)) 1.4vw", fontSize: "max(calc(4.6 * var(--u)), 18px)", lineHeight: 1, textAlign: "center", textTransform: "uppercase", boxShadow: "5px 5px 0 #000" }}>
-            “{line}”
+            <Typed text={`“${line}”`} />
           </div>
         </div>
         <div style={{ position: "absolute", left: 0, right: 0, bottom: "24%", height: "min(54%, 42vw)", transform: `translateX(${pan}%)`, transition: "transform 0.3s ease-out" }}>
@@ -422,6 +484,7 @@ function Stage({ state }: { state: State }) {
                 <div className={on ? "bob" : undefined} style={{ position: "relative", height: "100%", filter: on ? "none" : "brightness(0.7) saturate(0.55)", transition: "filter 0.15s" }}>
                   <Character who={who} look={looks[who]} talk={on && talk} flip={who === "blue"} />
                 </div>
+                <Podium who={who} dim={!on} />
                 {/* Who is who: the player's own candidate is always marked. */}
                 <div style={{ ...silk, position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: "0.5em", padding: "0 0.5em", whiteSpace: "nowrap", fontSize: "max(calc(1.9 * var(--u)), 10px)", lineHeight: 1.4, background: mine ? "var(--cream)" : who === "moderator" ? GOLD : COLORS[who], color: INK, outline: mine ? `3px solid ${COLORS[who]}` : undefined, opacity: on || mine ? 1 : 0.55 }}>
                   {mine ? "You" : state.bot === who ? "CPU" : who}
